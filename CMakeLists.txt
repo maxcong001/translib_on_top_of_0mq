@@ -20,9 +20,9 @@ SET(EXAMPLE_BINARY ${PROJECT_NAME}_example)
 # set compiler flags
 IF(ENABLE_TEST)
     # disable optimization for testing version
-    set(CCXX_FLAGS "-g2 -Wall -std=c++11 -fPIC -lpthread")
+    set(CCXX_FLAGS "-g2 -Wall -std=c++11 -fPIC -lpthread -w")
 ELSE()
-    set(CCXX_FLAGS "-O2 -Wall -std=c++11 -fPIC -lpthread")
+    set(CCXX_FLAGS "-O2 -Wall -std=c++11 -fPIC -lpthread -w")
 ENDIF()
 
 #for 32-bit build
