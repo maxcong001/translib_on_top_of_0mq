@@ -137,7 +137,7 @@ int main(void)
         if (items[0].revents & ZMQ_POLLIN)
         {
             zmsg msg(backend);
-            std::string identity(msg.unwrap());
+            std::string identity((char *)(msg.pop_front()).c_str());
 
             //  Return reply to client if it's not a control message
             if (msg.parts() == 1)
