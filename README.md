@@ -4,3 +4,9 @@
 https://github.com/maxcong001/translib_on_top_of_0mq/projects/1
 
 ## the gole is to make a user friendly translib lib.
+
+## let us start from simple
+### there is no broker/proxy.
+### this should be full async mode.
+### 1. client side is DEALER
+### 2. server side is ROUTER
