@@ -43,7 +43,7 @@ class server_base
                     zmsg msg(server_socket_);
                     // ToDo: now we got the message, do main work
                     std::cout << "receive message form client" << std::endl;
-                    
+                    msg.dump();
                     // send back message to client, for test
                     msg.send(server_socket_);
                 }
@@ -57,7 +57,10 @@ class server_base
     {
         server_socket_.send(msg, len);
     }
-
+    size_t send(char *msg, size_t len)
+    {
+        server_socket_.send(msg, len);
+    }
   private:
     zmq::context_t ctx_;
     zmq::socket_t server_socket_;

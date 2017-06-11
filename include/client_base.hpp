@@ -22,7 +22,10 @@ class client_base
     {
         client_socket_.send(msg, len);
     }
-
+    size_t send(char *msg, size_t len)
+    {
+        client_socket_.send(msg, len);
+    }
     void run()
     {
         auto routine_fun = std::bind(&client_base::start, this);
