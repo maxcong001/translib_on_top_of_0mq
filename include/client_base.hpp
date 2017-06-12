@@ -8,9 +8,10 @@
 #include "zhelpers.hpp"
 #include "zmsg.hpp"
 
-
 class client_base
 {
+    typedef std::function<void(char *input)> CB_FUNC;
+
   public:
     client_base()
         : ctx_(1),
@@ -31,6 +32,18 @@ class client_base
         auto routine_fun = std::bind(&client_base::start, this);
         std::thread routine_thread(routine_fun);
         routine_thread.detach();
+    }
+
+    void set_cb(CB_FUNC cb)
+    {
+        if (cb)
+        {
+            cb_ = cb;
+        }
+        else
+        {
+            //log here
+        }
     }
 
   private:
@@ -62,21 +75,32 @@ class client_base
             zmq_close(client_socket_);
             zmq_ctx_destroy(&ctx_);
         }
-
+        if (zmq_setsockopt(client_socket_, ZMQ_SNDTIMEO, &iRcvTimeout, sizeof(iRcvTimeout)) < 0)
+        {
+            zmq_close(client_socket_);
+            zmq_ctx_destroy(&ctx_);
+        }
         client_socket_.connect("tcp://127.0.0.1:5570");
-        
+
         //  Initialize poll set
         zmq::pollitem_t items[] = {{client_socket_, 0, ZMQ_POLLIN, 0}};
         while (1)
         {
             try
             {
+                // to do  now poll forever, we can set a timeout and then so something like heartbeat
                 zmq::poll(items, 1, -1);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
                     zmsg msg(client_socket_);
+                    //std::cout << "receive message from server with " << msg.parts() << " parts" << std::endl;
+                    //msg.dump();
                     // ToDo: now we got the message, do main work
-                    std::cout << "receive message form server" << std::endl;
+                    //std::cout << "receive message form server, body is " << msg.body() << std::endl;
+                    if (cb_)
+                    {
+                        cb_(msg.body());
+                    }
                 }
             }
             catch (std::exception &e)
@@ -86,6 +110,7 @@ class client_base
     }
 
   private:
+    CB_FUNC cb_;
     zmq::context_t ctx_;
     zmq::socket_t client_socket_;
 };
