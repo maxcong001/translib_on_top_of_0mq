@@ -9,6 +9,11 @@
 int seq_number;
 int seq_number1;
 std::mutex mtx;
+void tmp_cb(char *input)
+{
+    std::string tmp_str(input);
+    std::cout << "receive: " << tmp_str << std::endl;
+}
 void callback_f(char *input)
 {
     //std::lock_guard<std::mutex> lock(mtx);
@@ -52,6 +57,20 @@ int main(void)
     ct1.set_cb(callback_f);
     client_base ct2;
     ct2.set_cb(callback_f1);
+
+    std::vector<client_base *> client_vector;
+    for (int num = 0; num < 20; num++)
+    {
+        client_vector.emplace_back(new client_base());
+    }
+    for (auto tmp_client : client_vector)
+    {
+        tmp_client->set_cb(tmp_cb);
+        tmp_client->run();
+        std::string tmp_str("test");
+        tmp_client->send(tmp_str.c_str(), tmp_str.size());
+    }
+
     //client_base ct2;
     server_base st1;
     st1.run();
@@ -70,7 +89,7 @@ int main(void)
                 ct1.send(test_str.c_str(), test_str.size());
                 send_seq++;
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
     });
 
@@ -78,12 +97,22 @@ int main(void)
     std::thread th2([&]() {
         for (int i = 0; i < 100000000; i++)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             std::string test_str1 = std::to_string(send_seq1);
             ct2.send(test_str1.c_str(), test_str1.size());
             send_seq1++;
         } });
     th2.detach();
+
+    while (1)
+    {
+        for (auto tmp_client : client_vector)
+        {
+            std::string tmp_str("test!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            tmp_client->send(tmp_str.c_str(), tmp_str.size());
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
 /*
         if (!(i % 1001))
         {
@@ -133,5 +162,9 @@ int main(void)
 #endif
     //sleep(500);
     getchar();
+    for (auto tmp_client : client_vector)
+    {
+        delete tmp_client;
+    }
     return 0;
 }
