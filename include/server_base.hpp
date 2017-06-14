@@ -47,7 +47,19 @@ class server_base
             //log here
         }
     }
-
+    size_t send(const char *msg, size_t len)
+    {
+        server_socket_.send(msg, len);
+    }
+    size_t send(char *msg, size_t len)
+    {
+        server_socket_.send(msg, len);
+    }
+    size_t send(zmsg &input)
+    {
+        input.send(server_socket_);
+    }
+    
   private:
     bool start()
     {
@@ -123,14 +135,6 @@ class server_base
             {
             }
         }
-    }
-    size_t send(const char *msg, size_t len)
-    {
-        server_socket_.send(msg, len);
-    }
-    size_t send(char *msg, size_t len)
-    {
-        server_socket_.send(msg, len);
     }
 
   private:
