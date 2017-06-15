@@ -37,14 +37,13 @@ void server_cb1(zmsg &input)
 int main(void)
 {
     client_base ct1;
-    ct1.setIPPort("tcp://127.0.0.1:5570");
+    ct1.setIPPort("127.0.0.1:5570");
     ct1.set_cb(callback_f);
     client_base ct2;
-    ct2.setIPPort("tcp://127.0.0.1:5570");
+    ct2.setIPPort("127.0.0.1:5570");
     ct2.set_cb(callback_f);
 
-    
-    st1.set_cb(server_cb1);
+        st1.set_cb(server_cb1);
 
     st1.run();
     ct1.run();

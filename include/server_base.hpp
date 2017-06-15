@@ -59,7 +59,7 @@ class server_base
     {
         input.send(server_socket_);
     }
-    
+
   private:
     bool start()
     {
@@ -113,8 +113,7 @@ class server_base
 
         //  Initialize poll set
         zmq::pollitem_t items[] = {
-            {server_socket_, 0, ZMQ_POLLIN, 0},
-        };
+            {server_socket_, 0, ZMQ_POLLIN, 0}};
         while (1)
         {
             try

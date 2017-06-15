@@ -44,12 +44,21 @@ class client_base
     }
     void setIPPort(std::string ipport)
     {
-        IP_and_port = ipport;
+        IP_and_port_dest = ipport;
     }
     std::string getIPPort()
     {
-        return IP_and_port;
+        return IP_and_port_dest;
     }
+    void setIPPortSource(std::string ipport)
+    {
+        IP_and_port_source = ipport;
+    }
+    std::string getIPPortSource()
+    {
+        return IP_and_port_source;
+    }
+
     void set_cb(CLIENT_CB_FUNC cb)
     {
         if (cb)
@@ -65,13 +74,13 @@ class client_base
     bool restart(std::string input)
     {
         /*
-        if (IP_and_port == input)
+        if (IP_and_port_dest == input)
         {
             return true;
         }
         client_socket_.close();
 
-        IP_and_port = input;*/
+        IP_and_port_dest = input;*/
     }
 
   private:
@@ -124,7 +133,18 @@ class client_base
         }
         try
         {
-            client_socket_.connect(IP_and_port);
+            std::string IPPort;
+            // should be like this tcp://192.168.1.17:5555;192.168.1.1:5555
+            if (IP_and_port_source.empty())
+            {
+                IPPort += "tcp://" + IP_and_port_dest;
+            }
+            else
+            {
+                IPPort += "tcp://" + IP_and_port_source + ";" + IP_and_port_dest;
+            }
+
+            client_socket_.connect(IPPort);
         }
         catch (std::exception &e)
         {
@@ -162,7 +182,9 @@ class client_base
     }
 
   private:
-    std::string IP_and_port;
+    std::string IP_and_port_dest;
+    std::string IP_and_port_source;
+
     CLIENT_CB_FUNC cb_;
     zmq::context_t ctx_;
     zmq::socket_t client_socket_;
