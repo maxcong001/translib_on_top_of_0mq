@@ -3,19 +3,22 @@
 #include <thread>
 #include <memory>
 #include <functional>
+#include <atomic>
+#include <map>
 
 #include <zmq.hpp>
 #include "zhelpers.hpp"
 #include "zmsg.hpp"
+#include <memory>
+#include <util.hpp>
 
 class server_base
 {
 
   public:
-    typedef std::function<void(zmsg &)> SERVER_CB_FUNC;
     server_base()
         : ctx_(1),
-          server_socket_(ctx_, ZMQ_ROUTER)
+          server_socket_(ctx_, ZMQ_ROUTER), uniqueID_atomic(1)
     {
         // this is for test
         //seq_num = 0;
@@ -47,20 +50,39 @@ class server_base
             //log here
         }
     }
-    size_t send(const char *msg, size_t len)
+
+    size_t send(const char *msg, size_t len, void *ID)
     {
-        server_socket_.send(msg, len);
+        auto iter = Id2MsgMap.find(ID);
+        if (iter != Id2MsgMap.end())
+        {
+            zmsg::ustring tmp_ustr((unsigned char *)msg, len);
+            // to do add the send code
+            (iter->second)->push_back(tmp_ustr);
+            (iter->second)->send(server_socket_);
+            // make sure delete the memory of the message
+            //(iter->second)->clear();
+            (iter->second).reset();
+            Id2MsgMap.erase(iter);
+        }
+        else
+        {
+            // log here, did not find the ID
+            return -1;
+        }
     }
-    size_t send(char *msg, size_t len)
-    {
-        server_socket_.send(msg, len);
-    }
+
+    void *getUniqueID() { return (void *)(uniqueID_atomic++); };
+
+  private:
     size_t send(zmsg &input)
     {
         input.send(server_socket_);
     }
-
-  private:
+    size_t send(const char *msg, size_t len)
+    {
+        server_socket_.send(msg, len);
+    }
     bool start()
     {
         // enable IPV6, we had already make sure that we are using TCP then we can set this option
@@ -103,7 +125,13 @@ class server_base
         }
         try
         {
-            server_socket_.bind("tcp://127.0.0.1:5570");
+            if (IP_and_port.empty())
+            {
+                return true;
+            }
+            std::string tmp;
+            tmp += "tcp://" + IP_and_port;
+            server_socket_.bind(tmp);
         }
         catch (std::exception &e)
         {
@@ -121,13 +149,29 @@ class server_base
                 zmq::poll(items, 1, -1);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
-                    zmsg msg(server_socket_);
+                    zmsg_ptr msg(new zmsg(server_socket_));
+                    std::string data = msg->get_body();
+                    if (data.empty())
+                    {
+                        // log here, we get a message without body
+                        continue;
+                    }
+                    void *ID = getUniqueID();
+                    Id2MsgMap.emplace(ID, msg);
+
                     // ToDo: now we got the message, do main work
                     //std::cout << "receive message form client" << std::endl;
                     //msg.dump();
                     // send back message to client, for test
                     //msg.send(server_socket_);
-                    cb_(msg);
+                    if (cb_)
+                    {
+                        cb_(data.c_str(), data.size(), ID);
+                    }
+                    else
+                    {
+                        //log here as there is no callback function
+                    }
                 }
             }
             catch (std::exception &e)
@@ -139,8 +183,10 @@ class server_base
   private:
     // this is for test
     //int seq_num;
-    SERVER_CB_FUNC cb_;
+    SERVER_CB_FUNC *cb_;
     std::string IP_and_port;
     zmq::context_t ctx_;
     zmq::socket_t server_socket_;
+    std::atomic<long> uniqueID_atomic;
+    std::map<void *, zmsg_ptr> Id2MsgMap;
 };
