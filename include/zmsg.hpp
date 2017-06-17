@@ -167,19 +167,6 @@ class zmsg
         else
             return 0;
     }
-    std::string get_body()
-    {
-        if (m_part_data.size())
-        {
-            std::string ret = (std::string((char *)(m_part_data[m_part_data.size() - 1].c_str()), m_part_data[m_part_data.size() - 1].size()));
-            m_part_data.erase(m_part_data.end());
-            return ret;
-        }
-        else
-        {
-            return std::string();
-        }
-    }
 
     // zmsg_push
     void push_front(char *part)
@@ -192,10 +179,7 @@ class zmsg
     {
         m_part_data.push_back((unsigned char *)part);
     }
-    void push_back(ustring &part)
-    {
-        m_part_data.push_back(part);
-    }
+
     //  --------------------------------------------------------------------------
     //  Formats 17-byte UUID as 33-char string starting with '@'
     //  Lets us print UUIDs as C strings and use them as addresses
