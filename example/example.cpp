@@ -8,34 +8,55 @@
 #include <mutex>
 #include <future>
 
-void callback_f(zmsg &input)
-{
-    input.dump();
-}
+// this is the callback function of server
+// typedef std::function<void(const char *, size_t, void *)> SERVER_CB_FUNC;
+// this is the callback function of client
+// typedef void USR_CB_FUNC(char *msg, size_t len, void *usr_data);
+server_base st1;
 std::mutex mtx;
 //std::lock_guard<std::mutex> lock(mtx);
-
+void client_cb_001(const char *msg, size_t len, void *usr_data)
+{
+    std::cout << "receive message form server : \"" << (std::string(msg, len)) << "\" with user data : " << usr_data << std::endl;
+}
+void server_cb_001(const char *data, size_t len, void *ID)
+{
+    std::cout << "receive message form client : " << (std::string(data, len)) << std::endl;
+    st1.send(data, len, ID);
+}
 int main(void)
 {
+
     client_base ct1;
-    ct1.setIPPort("tcp://127.0.0.1:5570");
-    ct1.set_cb(callback_f);
+
+    ct1.setIPPort("127.0.0.1:5570");
     client_base ct2;
-    ct2.setIPPort("tcp://127.0.0.1:5570");
-    ct2.set_cb(callback_f);
+    ct2.setIPPort("127.0.0.1:5570");
 
-    server_base st1;
-    st1.set_cb(server_cb);
+    st1.setIPPort("127.0.0.1:5570");
+    // for server, you need to set callback function first
+    st1.set_cb(server_cb_001);
 
-    st1.run();
     ct1.run();
     ct2.run();
 
+    st1.run();
+
     std::string test_str = "this is for test!";
-    ct1.send(test_str.c_str(), test_str.size());
-    ct2.send(test_str.c_str(), test_str.size());
+    void *user_data = (void *)28;
+    std::cout << "send message : \"" << test_str << "\"  with usr data : " << user_data << std::endl;
+
+    for (int i = 0; i < 10; i++)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+        ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+        //ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+    ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+    ct1.stop();
 
     getchar();
-
     return 0;
 }
