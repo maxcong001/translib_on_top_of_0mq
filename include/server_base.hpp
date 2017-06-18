@@ -79,7 +79,7 @@ class server_base
     {
         return IP_and_port;
     }
-    
+
     void set_cb(SERVER_CB_FUNC cb)
     {
         if (cb)
@@ -180,7 +180,8 @@ class server_base
             {
                 return false;
             }
-            std::cout << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
+            
+            //std::cout << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
             if (monitor_cb)
             {
                 monitor_cb(event, value, address);

@@ -24,16 +24,27 @@ void server_cb_001(const char *data, size_t len, void *ID)
     std::cout << "receive message form client : " << (std::string(data, len)) << std::endl;
     st1.send(data, len, ID);
 }
+void client_monitor_func(int event, int value, std::string &address)
+{
+    std::cout << "receive event form client monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
+}
+void server_monitor_func(int event, int value, std::string &address)
+{
+    std::cout << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
+}
 int main(void)
 {
 
     client_base ct1;
+    ct1.set_monitor_cb(client_monitor_func);
 
     ct1.setIPPort("127.0.0.1:5570");
     client_base ct2;
+     ct2.set_monitor_cb(client_monitor_func);
     ct2.setIPPort("127.0.0.1:5570");
 
     st1.setIPPort("127.0.0.1:5570");
+    st1.set_monitor_cb(server_monitor_func);
     // for server, you need to set callback function first
     st1.set_cb(server_cb_001);
 
