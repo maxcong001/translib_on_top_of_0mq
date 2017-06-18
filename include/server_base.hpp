@@ -22,6 +22,7 @@ class server_base
         : ctx_(1),
           server_socket_(ctx_, ZMQ_ROUTER), uniqueID_atomic(1)
     {
+        monitor_cb = NULL;
         routine_thread = NULL;
         monitor_thread = NULL;
         should_exit_monitor_task = false;
@@ -78,6 +79,7 @@ class server_base
     {
         return IP_and_port;
     }
+    
     void set_cb(SERVER_CB_FUNC cb)
     {
         if (cb)
@@ -108,6 +110,18 @@ class server_base
         {
             // log here, did not find the ID
             return -1;
+        }
+    }
+
+    void set_monitor_cb(MONITOR_CB_FUNC cb)
+    {
+        if (cb)
+        {
+            monitor_cb = cb;
+        }
+        else
+        {
+            //log here
         }
     }
 
@@ -167,6 +181,10 @@ class server_base
                 return false;
             }
             std::cout << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
+            if (monitor_cb)
+            {
+                monitor_cb(event, value, address);
+            }
         }
     }
     bool monitor_this_socket()
@@ -299,6 +317,7 @@ class server_base
     // this is for test
     //int seq_num;
     SERVER_CB_FUNC *cb_;
+    MONITOR_CB_FUNC *monitor_cb;
     std::string IP_and_port;
     zmq::context_t ctx_;
     zmq::socket_t server_socket_;

@@ -3,6 +3,7 @@
 #include "zhelpers.hpp"
 #include "zmsg.hpp"
 #include <memory>
+#include <functional>
 /*
 this file contains the util functions
 
@@ -11,7 +12,11 @@ this file contains the util functions
 typedef std::shared_ptr<zmsg> zmsg_ptr;
 typedef void USR_CB_FUNC(const char *, size_t, void *);
 typedef void SERVER_CB_FUNC(const char *, size_t, void *);
-typedef void MONITOR_CB_FUNC(int);
+typedef void MONITOR_CB_FUNC(int, int, std::string &);
+
+
+//typedef void* MONITOR_CB_FUNC_CLIENT(int, int, std::string &);
+typedef std::function<void(int, int, std::string &)> MONITOR_CB_FUNC_CLIENT;
 /*
 Supported events
 ZMQ_EVENT_CONNECTED

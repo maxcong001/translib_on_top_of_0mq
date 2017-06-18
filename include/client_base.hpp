@@ -19,12 +19,17 @@ class client_base
         : ctx_(1),
           client_socket_(ctx_, ZMQ_DEALER)
     {
+        //monitor_cb = NULL;
+        
+        cb_ = NULL;
         routine_thread = NULL;
         should_stop = false;
     }
     client_base(std::string IPPort) : ctx_(1),
                                       client_socket_(ctx_, ZMQ_DEALER)
     {
+        //monitor_cb = NULL;
+        cb_ = NULL;
         routine_thread = NULL;
         run();
     }
@@ -105,6 +110,19 @@ class client_base
             return false;
         }
     }
+    /*
+    void set_monitor_cb(MONITOR_CB_FUNC cb)
+    {
+        if (cb)
+        {
+            monitor_cb = cb;
+        }
+        else
+        {
+            //log here
+        }
+    }
+    */
     bool stop()
     {
 
@@ -183,6 +201,11 @@ class client_base
                 return false;
             }
             std::cout << "receive event form client monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
+            
+            if (monitor_cb)
+            {
+                monitor_cb(event, value, address);
+            }
         }
     }
     bool monitor_this_socket()
@@ -332,6 +355,8 @@ class client_base
     std::thread *routine_thread;
     std::thread *monitor_thread;
 
+
     bool should_stop;
     bool should_exit_monitor_task;
+    MONITOR_CB_FUNC_CLIENT monitor_cb;
 };
