@@ -1,3 +1,6 @@
+### update 2017/6/17
+add monitor task 
+
 # this is another thread to implement translib based on 0MQ
 ## this project is based on 0MQ and need C++11 so far.
 ### project link

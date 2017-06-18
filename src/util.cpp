@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 
-int get_monitor_event(void *monitor, int *value, char **address)
+int get_monitor_event(void *monitor, int *value, std::string &address)
 {
     // First frame in message contains event number and value
     zmq_msg_t msg;
@@ -20,13 +20,16 @@ int get_monitor_event(void *monitor, int *value, char **address)
     if (zmq_msg_recv(&msg, monitor, 0) == -1)
         return -1; // Interrupted, presumably
     assert(!zmq_msg_more(&msg));
-    if (address)
-    {
-        uint8_t *data = (uint8_t *)zmq_msg_data(&msg);
-        size_t size = zmq_msg_size(&msg);
-        *address = (char *)malloc(size + 1);
-        memcpy(*address, data, size);
-        (*address)[size] = 0;
-    }
+    // if (address.empty())
+    // {
+    uint8_t *data1 = (uint8_t *)zmq_msg_data(&msg);
+    size_t size = zmq_msg_size(&msg);
+    //*address = (char *)malloc(size + 1);
+    //memcpy(*address, data, size);
+    //(*address)[size] = 0;
+    address.clear();
+    address.append((char *)data1, size);
+
+    // }
     return event;
 }

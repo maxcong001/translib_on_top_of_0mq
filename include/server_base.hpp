@@ -159,12 +159,14 @@ class server_base
             {
                 return true;
             }
-            int event = get_monitor_event(server_mon, NULL, NULL);
+            std::string address;
+            int value;
+            int event = get_monitor_event(server_mon, &value, address);
             if (event == -1)
             {
                 return false;
             }
-            std::cout << "receive event form server monitor task, the event is " << event << std::endl;
+            std::cout << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
         }
     }
     bool monitor_this_socket()

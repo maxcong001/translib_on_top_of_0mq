@@ -11,6 +11,7 @@ this file contains the util functions
 typedef std::shared_ptr<zmsg> zmsg_ptr;
 typedef void USR_CB_FUNC(const char *, size_t, void *);
 typedef void SERVER_CB_FUNC(const char *, size_t, void *);
+typedef void MONITOR_CB_FUNC(int);
 /*
 Supported events
 ZMQ_EVENT_CONNECTED
@@ -52,6 +53,6 @@ ZMQ_EVENT_HANDSHAKE_SUCCEED
 #define ZMQ_EVENT_MONITOR_STOPPED   0x0400
 #define ZMQ_EVENT_ALL               0xFFFF
 */
-int get_monitor_event(void *monitor, int *value, char **address);
+int get_monitor_event(void *monitor, int *value, std::string &address);
 
 // utill function
