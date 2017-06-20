@@ -103,6 +103,7 @@ class client_base
         bool ret = monitor_this_socket();
         if (ret)
         {
+            std::cout << "start monitor task success" << std::endl;
         }
         else
         {
@@ -110,7 +111,7 @@ class client_base
             return false;
         }
     }
-    
+
     void set_monitor_cb(MONITOR_CB_FUNC cb)
     {
         if (cb)
@@ -122,7 +123,7 @@ class client_base
             //log here
         }
     }
-    
+
     bool stop()
     {
 
@@ -184,6 +185,7 @@ class client_base
         if (rc)
         {
             //
+            std::cout << "connect to monter pair fail" << std::endl;
             return false;
         }
         while (1)
@@ -201,7 +203,7 @@ class client_base
                 return false;
             }
             //std::cout << "receive event form client monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
-            
+
             if (monitor_cb)
             {
                 monitor_cb(event, value, address);
@@ -354,7 +356,6 @@ class client_base
     zmq::socket_t client_socket_;
     std::thread *routine_thread;
     std::thread *monitor_thread;
-
 
     bool should_stop;
     bool should_exit_monitor_task;

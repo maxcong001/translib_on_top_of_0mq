@@ -180,7 +180,7 @@ class server_base
             {
                 return false;
             }
-            
+
             //std::cout << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
             if (monitor_cb)
             {
@@ -269,7 +269,7 @@ class server_base
             try
             {
                 // by default we wait for 500ms then so something. like hreatbeat
-                zmq::poll(items, 1, EPOLL_TIMEOUT);
+                zmq::poll(items, 1, -1);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
                     // this is for test, delete it later
@@ -307,8 +307,8 @@ class server_base
             }
             catch (std::exception &e)
             {
-                std::unique_lock<std::mutex> monitor_lock(monitor_mutex);
-                monitor_cond.notify_all();
+                //std::unique_lock<std::mutex> monitor_lock(monitor_mutex);
+                //monitor_cond.notify_all();
                 //return false;
             }
         }
