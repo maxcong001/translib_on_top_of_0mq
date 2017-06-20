@@ -1,6 +1,8 @@
 
 #include "client_base.hpp"
 #include "server_base.hpp"
+#include "broker.hpp"
+#include "worker.hpp"
 #include "util.hpp"
 #include <string>
 #include <thread> // std::this_thread::sleep_for
@@ -13,6 +15,7 @@
 // this is the callback function of client
 // typedef void USR_CB_FUNC(char *msg, size_t len, void *usr_data);
 server_base st1;
+worker_base wk1;
 std::mutex mtx;
 int message_count;
 
@@ -68,6 +71,12 @@ void server_cb_001(const char *data, size_t len, void *ID)
     std::cout << "receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
     st1.send(data, len, ID);
 }
+
+void worker_cb_001(const char *data, size_t len, void *ID)
+{
+    std::cout << "receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+    wk1.send(data, len, ID);
+}
 void client_monitor_func(int event, int value, std::string &address)
 {
     std::cout << "receive event form client monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
@@ -78,46 +87,93 @@ void server_monitor_func(int event, int value, std::string &address)
 }
 int main(void)
 {
+
     LogManager::getLogger(logging_cb)->setLevel(Logger::ALL);
 
-    logger->error(ZMQ_LOG, "hello world\n");
-
-    client_base ct1;
-    ct1.set_monitor_cb(client_monitor_func);
-    ct1.setIPPort("127.0.0.1:5571");
-    //ct1.setIPPortSource("127.0.0.1:5578");
-
-    client_base ct2;
-    ct2.set_monitor_cb(client_monitor_func);
-    ct2.setIPPort("127.0.0.1:5571");
-    //    ct1.setIPPortSource("127.0.0.1:5577");
-
-    st1.setIPPort("127.0.0.1:5571");
-    st1.set_monitor_cb(server_monitor_func);
-    // for server, you need to set callback function first
-    st1.set_cb(server_cb_001);
-
-    ct1.run();
-    ct2.run();
-
-    st1.run();
-
-    std::string test_str = "this is for test!";
-    void *user_data = (void *)28;
-    std::cout << "send message : \"" << test_str << "\"  with usr data : " << user_data << std::endl;
-
-    for (int i = 0; i < 10; i++)
+//    logger->error(ZMQ_LOG, "hello world\n");
+/************this is DEALER <->ROUTER MODE ************/
+#if 0
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        logger->error(ZMQ_LOG, " ************   this is DEALER<->ROUTER MODE************\n");
+        client_base ct1;
+        ct1.set_monitor_cb(client_monitor_func);
+        ct1.setIPPort("127.0.0.1:5571");
+        //ct1.setIPPortSource("127.0.0.1:5578");
 
-        ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
-        //ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+        client_base ct2;
+        ct2.set_monitor_cb(client_monitor_func);
+        ct2.setIPPort("127.0.0.1:5571");
+        //    ct1.setIPPortSource("127.0.0.1:5577");
+
+        st1.setIPPort("127.0.0.1:5571");
+        st1.set_monitor_cb(server_monitor_func);
+        // for server, you need to set callback function first
+        st1.set_cb(server_cb_001);
+
+        ct1.run();
+        ct2.run();
+
+        st1.run();
+
+        std::string test_str = "this is for test!";
+        void *user_data = (void *)28;
+        std::cout << "send message : \"" << test_str << "\"  with usr data : " << user_data << std::endl;
+
+        for (int i = 0; i < 10; i++)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+            ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+            //ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+        ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+        ct1.stop();
     }
+#endif
+    /************   this is DEALER<->(RTOUTER<->DEALER)<->DEALER  mode************/
+    {
+        logger->error(ZMQ_LOG, " ************   this is DEALER<->(RTOUTER<->RTOUTER)<->DEALER  mode************\n");
+        std::string test_str = "this is for test!";
+        void *user_data = (void *)28;
+        // there will be three part
+        // 1. client part
+        // 2. broker part
+        // 3. worker part
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-    ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
-    ct1.stop();
+        // 1. client part
+        logger->debug(ZMQ_LOG, "start client part now\n");
+        client_base ct1;
+        ct1.set_monitor_cb(client_monitor_func);
+        ct1.setIPPort("127.0.0.1:5561");
+        ct1.run();
+        logger->debug(ZMQ_LOG, "start broker part now\n");
+        // 2. broker part
+        broker_base bk1;
+        auto broker_fun = std::bind(&broker_base::run, &bk1);
+        std::thread broker_t(broker_fun);
+        //broker_t.detach();
+        logger->debug(ZMQ_LOG, "start worker part now\n");
+        // 3. worker part
 
-    getchar();
-    return 0;
+        //wk1.setIPPort("127.0.0.1:5560");
+        wk1.set_monitor_cb(server_monitor_func);
+        // for server, you need to set callback function first
+        wk1.set_cb(worker_cb_001);
+        wk1.run();
+
+        for (int i = 0; i < 1000; i++)
+        {
+            logger->debug(ZMQ_LOG, "send message now\n");
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+            ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+        }
+
+        //broker_t.join();
+        getchar();
+
+        return 0;
+    }
 }

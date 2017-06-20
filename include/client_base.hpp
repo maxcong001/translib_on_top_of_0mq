@@ -179,13 +179,22 @@ class client_base
             // log here
             return false;
         }
-        int rc = zmq_connect(client_mon, "inproc://monitor-client");
-
-        //rc should be 0 if success
-        if (rc)
+        try
         {
-            //
-            std::cout << "connect to monter pair fail" << std::endl;
+            int rc = zmq_connect(client_mon, "inproc://monitor-client-default");
+
+            //rc should be 0 if success
+            if (rc)
+            {
+                //
+                std::cout << "connect to nomitor pair fail" << std::endl;
+                return false;
+            }
+        }
+        catch (std::exception &e)
+        {
+            logger->error(ZMQ_LOG, "connect to monitor socket fail\n");
+            // log here, connect fail
             return false;
         }
         while (1)
@@ -212,7 +221,7 @@ class client_base
     }
     bool monitor_this_socket()
     {
-        int rc = zmq_socket_monitor(client_socket_, "inproc://monitor-client", ZMQ_EVENT_ALL);
+        int rc = zmq_socket_monitor(client_socket_, "inproc://monitor-client-default", ZMQ_EVENT_ALL);
         return ((rc == 0) ? true : false);
     }
     size_t
@@ -235,13 +244,6 @@ class client_base
             ctx_.close();
             return false;
         }
-        /*
-        // generate random identity
-        char identity[10] = {};
-        sprintf(identity, "%04X-%04X", within(0x10000), within(0x10000));
-        printf("%s\n", identity);
-        client_socket_.setsockopt(ZMQ_IDENTITY, identity, strlen(identity));
-        */
 
         int linger = 0;
         if (zmq_setsockopt(client_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
@@ -284,7 +286,7 @@ class client_base
             {
                 IPPort += "tcp://" + IP_and_port_source + ";" + IP_and_port_dest;
             }
-
+            logger->debug(ZMQ_LOG, "\[CLIENT\] connect t0 : %s\n", IPPort.c_str());
             client_socket_.connect(IPPort);
         }
         catch (std::exception &e)

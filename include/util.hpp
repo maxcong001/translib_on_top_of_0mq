@@ -10,6 +10,11 @@ this file contains the util functions
 
 */
 #define EPOLL_TIMEOUT 500
+#define HEARTBEAT_LIVENESS 3    //  3-5 is reasonable
+#define HEARTBEAT_INTERVAL 1000 //  msecs
+#define INTERVAL_INIT 1000      //  Initial reconnect
+#define INTERVAL_MAX 32000      //  After exponential backoff
+
 typedef std::shared_ptr<zmsg> zmsg_ptr;
 typedef void USR_CB_FUNC(const char *, size_t, void *);
 typedef void SERVER_CB_FUNC(const char *, size_t, void *);
@@ -19,6 +24,12 @@ typedef void MONITOR_CB_FUNC(int, int, std::string &);
 typedef std::function<void(int, int, std::string &)> MONITOR_CB_FUNC_CLIENT;
 // set logger callback
 typedef std::function<void(const char *file, int line, const char *func, Logger::Level lev, const char *msg)> LogHandlerFn;
+
+typedef struct
+{
+    std::string identity; //  Address of worker
+    int64_t expiry;       //  Expires at this time
+} worker_t;
 /*
 Supported events
 ZMQ_EVENT_CONNECTED
