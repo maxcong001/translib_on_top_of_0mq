@@ -5,6 +5,7 @@
 #include <memory>
 #include <functional>
 #include <logger.hpp>
+#include <random>
 /*
 this file contains the util functions
 
@@ -16,6 +17,7 @@ this file contains the util functions
 #define INTERVAL_MAX 32000      //  After exponential backoff
 
 typedef std::shared_ptr<zmsg> zmsg_ptr;
+//typedef std::mt19937 0MQ_RNG;
 typedef void USR_CB_FUNC(const char *, size_t, void *);
 typedef void SERVER_CB_FUNC(const char *, size_t, void *);
 typedef void MONITOR_CB_FUNC(int, int, std::string &);

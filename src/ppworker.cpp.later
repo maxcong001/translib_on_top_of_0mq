@@ -103,6 +103,7 @@ int main(void)
             }
             interval = INTERVAL_INIT;
         }
+        /*
         else if (--liveness == 0)
         {
             std::cout << "W: (" << identity << ") heartbeat failure, can't reach queue" << std::endl;
@@ -117,6 +118,7 @@ int main(void)
             worker = s_worker_socket(context);
             liveness = HEARTBEAT_LIVENESS;
         }
+*/
 
         //  Send heartbeat to queue if it's time
         if (s_clock() > heartbeat_at)

@@ -37,7 +37,8 @@ int main(void)
 {
 	client_base ct1;
 	ct1.set_monitor_cb(client_monitor_func);
-	ct1.setIPPort("127.0.0.1:5570");
+	ct1.setIPPort("127.0.0.1:5561");
+
 	//ct1.setIPPortSource("127.0.0.1:5591");
 
 	//	client_base ct2;

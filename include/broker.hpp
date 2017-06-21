@@ -11,12 +11,10 @@
 #include "zmsg.hpp"
 #include <memory>
 #include <util.hpp>
-// for test, delete later
 #include <unistd.h>
 
 class broker_base
 {
-
   public:
     broker_base()
         : ctx_(1),
@@ -50,6 +48,7 @@ class broker_base
     {
         if (frontend_IPPort.empty())
         {
+            logger->error(ZMQ_LOG, "IP or Port is empty! please make sure you had set the IP and Port\n");
             return false;
         }
 
@@ -59,6 +58,7 @@ class broker_base
         {
             frontend_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set ZMQ_IPV6 return fail\n");
             return false;
         }
         /*
@@ -74,6 +74,7 @@ class broker_base
         {
             frontend_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set ZMQ_LINGER return fail\n");
             return false;
         }
         /*
@@ -90,12 +91,14 @@ class broker_base
         {
             frontend_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set ZMQ_RCVTIMEO return fail\n");
             return false;
         }
         if (zmq_setsockopt(frontend_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
         {
             frontend_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set ZMQ_SNDTIMEO return fail\n");
             return false;
         }
 
@@ -105,6 +108,7 @@ class broker_base
         {
             backend_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set ZMQ_IPV6 for back-end return fail\n");
             return false;
         }
         /*
@@ -120,6 +124,7 @@ class broker_base
         {
             backend_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set ZMQ_LINGER for back-end return fail\n");
             return false;
         }
         /*
@@ -136,12 +141,15 @@ class broker_base
         {
             backend_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set ZMQ_RCVTIMEO for back-end return fail\n");
             return false;
         }
         if (zmq_setsockopt(backend_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
         {
             backend_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set ZMQ_SNDTIMEO for back-end return fail\n");
+
             return false;
         }
 
@@ -190,9 +198,10 @@ class broker_base
                 //  Handle worker activity on backend
                 if (items[0].revents & ZMQ_POLLIN)
                 {
-                    logger->debug(ZMQ_LOG, "\[BROKER\] receive message from backend");
+
                     zmsg msg(backend_socket_);
                     std::string identity((char *)(msg.pop_front()).c_str());
+                    logger->debug(ZMQ_LOG, "\[BROKER\] receive message from backend with ID: %s\n", identity.c_str());
 
                     //  Return reply to client if it's not a control message
                     if (msg.parts() == 1)
@@ -212,7 +221,7 @@ class broker_base
                             }
                             else
                             {
-                                std::cout << "E: invalid message from " << identity << std::endl;
+                                logger->warn(ZMQ_LOG, "invalid message from %s\n", identity.c_str());
                                 msg.dump();
                             }
                         }
@@ -225,11 +234,10 @@ class broker_base
                 }
                 if (items[1].revents & ZMQ_POLLIN)
                 {
-                    logger->debug(ZMQ_LOG, "\[BROKER\] receive message from frontend");
                     //  Now get next client request, route to next worker
                     zmsg msg(frontend_socket_);
                     std::string identity = std::string(s_worker_dequeue());
-                    logger->debug(ZMQ_LOG, "\[BROKER\] send message to worker with ID : %s", identity.c_str());
+                    logger->debug(ZMQ_LOG, "\[BROKER\] receive message from frontend, send message to worker with ID : %s", identity.c_str());
                     msg.push_front((char *)identity.c_str());
                     msg.send(backend_socket_);
                 }
@@ -268,7 +276,7 @@ class broker_base
         {
             if (it->identity.compare(identity) == 0)
             {
-                std::cout << "E: duplicate worker identity " << identity.c_str() << std::endl;
+                logger->debug(ZMQ_LOG, "duplicate worker identity %s\n", identity.c_str());
                 found = true;
                 break;
             }
@@ -310,7 +318,7 @@ class broker_base
         }
         if (!found)
         {
-            std::cout << "E: worker " << identity << " not ready" << std::endl;
+            logger->warn(ZMQ_LOG, "worker %s not ready", identity.c_str());
         }
     }
 

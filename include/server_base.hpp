@@ -11,7 +11,6 @@
 #include "zmsg.hpp"
 #include <memory>
 #include <util.hpp>
-// for test, delete later
 #include <unistd.h>
 
 class server_base
@@ -27,19 +26,20 @@ class server_base
         monitor_thread = NULL;
         should_exit_monitor_task = false;
         should_exit_routine_task = false;
+        monitor_path.clear();
+        // set random monitor path
+        if (monitor_path.empty())
+        {
+            /*  set random ID */
+            std::stringstream ss;
+            ss << std::hex << std::uppercase
+               << std::setw(4) << std::setfill('0') << within(0x10000) << "-"
+               << std::setw(4) << std::setfill('0') << within(0x10000);
+            monitor_path = "inproc://" + ss.str();
+        }
     }
     ~server_base()
     {
-#if 0
-        if (server_socket_)
-        {
-            delete server_socket_;
-        }
-        if (ctx_)
-        {
-            delete ctx_;
-        }
-#endif
         should_exit_monitor_task = true;
         should_exit_routine_task = true;
         if (routine_thread)
@@ -67,9 +67,10 @@ class server_base
         }
         else
         {
-            // log here, start monitor socket fail!
+            logger->error(ZMQ_LOG, "start monitor socket fail!\n");
             return false;
         }
+        return ret;
     }
     void setIPPort(std::string ipport)
     {
@@ -88,7 +89,7 @@ class server_base
         }
         else
         {
-            //log here
+            logger->error(ZMQ_LOG, "invalid callback function\n");
         }
     }
 
@@ -108,9 +109,10 @@ class server_base
         }
         else
         {
-            // log here, did not find the ID
+            logger->error(ZMQ_LOG, "did not find the ID\n");
             return -1;
         }
+        return len;
     }
 
     void set_monitor_cb(MONITOR_CB_FUNC cb)
@@ -121,7 +123,7 @@ class server_base
         }
         else
         {
-            //log here
+            logger->error(ZMQ_LOG, "invalid callback fucntion\n");
         }
     }
 
@@ -156,21 +158,22 @@ class server_base
         void *server_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
         if (!server_mon)
         {
-            // log here
+            logger->error(ZMQ_LOG, "get 0MQ socket fail\n");
             return false;
         }
-        int rc = zmq_connect(server_mon, "inproc://monitor-server");
+        int rc = zmq_connect(server_mon, monitor_path.c_str());
 
         //rc should be 0 if success
         if (rc)
         {
-            //
+            logger->error(ZMQ_LOG, "connect fail\n");
             return false;
         }
         while (1)
         {
             if (should_exit_monitor_task)
             {
+                logger->warn(ZMQ_LOG, "monitor task will exit\n");
                 return true;
             }
             std::string address;
@@ -178,10 +181,10 @@ class server_base
             int event = get_monitor_event(server_mon, &value, address);
             if (event == -1)
             {
-                return false;
+                logger->error(ZMQ_LOG, "get monitor event fail\n");
+                //return false;
             }
 
-            //std::cout << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
             if (monitor_cb)
             {
                 monitor_cb(event, value, address);
@@ -190,7 +193,7 @@ class server_base
     }
     bool monitor_this_socket()
     {
-        int rc = zmq_socket_monitor(server_socket_, "inproc://monitor-server", ZMQ_EVENT_ALL);
+        int rc = zmq_socket_monitor(server_socket_, monitor_path.c_str(), ZMQ_EVENT_ALL);
         return ((rc == 0) ? true : false);
     }
     size_t send(zmsg &input)
@@ -209,6 +212,7 @@ class server_base
         {
             zmq_close(server_socket_);
             zmq_ctx_destroy(&ctx_);
+            logger->error(ZMQ_LOG, "set socket optioon ZMQ_IPV6 fail\n");
             return false;
         }
         /*
@@ -225,12 +229,15 @@ class server_base
         {
             zmq_close(server_socket_);
             zmq_ctx_destroy(&ctx_);
+            logger->error(ZMQ_LOG, "set socket optioon ZMQ_RCVTIMEO fail\n");
             return false;
         }
         if (zmq_setsockopt(server_socket_, ZMQ_SNDTIMEO, &iRcvTimeout, sizeof(iRcvTimeout)) < 0)
         {
             zmq_close(server_socket_);
             zmq_ctx_destroy(&ctx_);
+            logger->error(ZMQ_LOG, "set socket optioon ZMQ_SNDTIMEO fail\n");
+
             return false;
         }
 
@@ -239,12 +246,15 @@ class server_base
         {
             zmq_close(server_socket_);
             zmq_ctx_destroy(&ctx_);
+            logger->error(ZMQ_LOG, "set socket optioon ZMQ_LINGER fail\n");
+
             return false;
         }
         try
         {
             if (IP_and_port.empty())
             {
+                logger->error(ZMQ_LOG, "please make sure you had set the IP and port info\n");
                 return false;
             }
             std::string tmp;
@@ -253,7 +263,7 @@ class server_base
         }
         catch (std::exception &e)
         {
-            // need log here
+            logger->error(ZMQ_LOG, " socket bind error\n");
             return false;
         }
 
@@ -264,6 +274,7 @@ class server_base
         {
             if (should_exit_routine_task)
             {
+                logger->warn(ZMQ_LOG, " server routine task will exit\n");
                 return true;
             }
             try
@@ -279,7 +290,7 @@ class server_base
                     std::string data = msg->get_body();
                     if (data.empty())
                     {
-                        // log here, we get a message without body
+                        logger->warn(ZMQ_LOG, " get a message without body\n");
                         continue;
                     }
                     void *ID = getUniqueID();
@@ -296,27 +307,25 @@ class server_base
                     }
                     else
                     {
-                        //log here as there is no callback function
+                        logger->warn(ZMQ_LOG, " no invalid callback function, please make sure you had set it\n");
                     }
                 }
                 else
                 {
-                    std::cout << " epoll timeout !" << std::endl;
-                    // to do, signal the monitor thread
+                    logger->error(ZMQ_LOG, "epoll error !\n");
                 }
             }
             catch (std::exception &e)
             {
-                //std::unique_lock<std::mutex> monitor_lock(monitor_mutex);
-                //monitor_cond.notify_all();
-                //return false;
+                logger->error(ZMQ_LOG, "catch exception. epoll error\n");
             }
         }
+        // should never return
+        return false;
     }
 
   private:
-    // this is for test
-    //int seq_num;
+    std::string monitor_path;
     SERVER_CB_FUNC *cb_;
     MONITOR_CB_FUNC *monitor_cb;
     std::string IP_and_port;

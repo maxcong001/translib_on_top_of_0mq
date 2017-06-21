@@ -27,6 +27,17 @@ class worker_base
         monitor_thread = NULL;
         should_exit_monitor_task = false;
         should_exit_routine_task = false;
+        // set random monitor path
+        monitor_path.clear();
+        if (monitor_path.empty())
+        {
+            /*  set random ID */
+            std::stringstream ss;
+            ss << std::hex << std::uppercase
+               << std::setw(4) << std::setfill('0') << within(0x10000) << "-"
+               << std::setw(4) << std::setfill('0') << within(0x10000);
+            monitor_path = "inproc://" + ss.str();
+        }
     }
 
     ~worker_base()
@@ -68,7 +79,7 @@ class worker_base
         }
         else
         {
-            // log here, start monitor socket fail!
+            logger->error(ZMQ_LOG, "start monitor socket fail!\n");
             return false;
         }
     }
@@ -96,7 +107,7 @@ class worker_base
         }
         else
         {
-            //log here
+            logger->error(ZMQ_LOG, "invalid callback function\n");
         }
     }
 
@@ -116,7 +127,7 @@ class worker_base
         }
         else
         {
-            // log here, did not find the ID
+            logger->error(ZMQ_LOG, "did not find the ID\n");
             return -1;
         }
     }
@@ -129,7 +140,7 @@ class worker_base
         }
         else
         {
-            //log here
+            logger->error(ZMQ_LOG, "invalid montior callback function \n");
         }
     }
 
@@ -163,17 +174,19 @@ class worker_base
         void *server_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
         if (!server_mon)
         {
-            // log here
+            logger->error(ZMQ_LOG, "0MQ get socket fail\n");
             return false;
         }
         try
         {
-            int rc = zmq_connect(server_mon, "inproc://monitor-worker");
+
+            logger->debug(ZMQ_LOG, "\[WORKER\] monitor path %s\n", monitor_path.c_str());
+            int rc = zmq_connect(server_mon, monitor_path.c_str());
 
             //rc should be 0 if success
             if (rc)
             {
-                //
+                logger->error(ZMQ_LOG, "0MQ connect fail\n");
                 return false;
             }
         }
@@ -187,6 +200,7 @@ class worker_base
         {
             if (should_exit_monitor_task)
             {
+                logger->warn(ZMQ_LOG, "will exit monitor task\n");
                 return true;
             }
             std::string address;
@@ -194,7 +208,8 @@ class worker_base
             int event = get_monitor_event(server_mon, &value, address);
             if (event == -1)
             {
-                return false;
+                logger->warn(ZMQ_LOG, "get monitor event fail\n");
+                //return false;
             }
 
             //std::cout << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
@@ -206,7 +221,7 @@ class worker_base
     }
     bool monitor_this_socket()
     {
-        int rc = zmq_socket_monitor(worker_socket_, "inproc://monitor-worker", ZMQ_EVENT_ALL);
+        int rc = zmq_socket_monitor(worker_socket_, monitor_path.c_str(), ZMQ_EVENT_ALL);
         return ((rc == 0) ? true : false);
     }
     size_t send(zmsg &input)
@@ -226,23 +241,19 @@ class worker_base
         {
             worker_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set socket option ZMQ_IPV6 fail\n");
             return false;
         }
-        /*
-        // generate random identity
-        char identity[10] = {};
-        sprintf(identity, "%04X-%04X", within(0x10000), within(0x10000));
-        printf("%s\n", identity);
-        worker_socket_.setsockopt(ZMQ_IDENTITY, identity, strlen(identity));
-        */
-        std::string identity = s_set_id(worker_socket_);
-        logger->debug(ZMQ_LOG, "\[WORKER\] set ID %s to worker\n", identity.c_str());
+
+        identity_ = s_set_id(worker_socket_);
+        logger->debug(ZMQ_LOG, "\[WORKER\] set ID %s to worker\n", identity_.c_str());
 
         int linger = 0;
         if (zmq_setsockopt(worker_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
         {
             worker_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set socket option ZMQ_LINGER fail\n");
             return false;
         }
         /*
@@ -259,12 +270,15 @@ class worker_base
         {
             worker_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set socket option ZMQ_RCVTIMEO fail\n");
             return false;
         }
         if (zmq_setsockopt(worker_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
         {
             worker_socket_.close();
             ctx_.close();
+            logger->error(ZMQ_LOG, "set socket option ZMQ_SNDTIMEO fail\n");
+
             return false;
         }
 
@@ -288,12 +302,14 @@ class worker_base
         catch (std::exception &e)
         {
             logger->error(ZMQ_LOG, "\[WORKER\] connect fail!!!!\n");
-            // log here, connect fail
             return false;
         }
         // tell the broker that we are ready
         std::string ready_str("READY");
         send(ready_str.c_str(), ready_str.size());
+
+        //  Send out heartbeats at regular intervals
+        int64_t heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
 
         //  Initialize poll set
         zmq::pollitem_t items[] = {
@@ -302,6 +318,7 @@ class worker_base
         {
             if (should_exit_routine_task)
             {
+                logger->warn(ZMQ_LOG, "will exit monitor task\n");
                 return true;
             }
             try
@@ -324,7 +341,7 @@ class worker_base
                         std::string data = msg->get_body();
                         if (data.empty())
                         {
-                            // log here, we get a message without body
+                            logger->warn(ZMQ_LOG, "we get a message without body\n");
                             continue;
                         }
                         void *ID = getUniqueID();
@@ -341,33 +358,49 @@ class worker_base
                         }
                         else
                         {
-                            //log here as there is no callback function
+                            logger->error(ZMQ_LOG, " no valid callback function, please make sure you had set message callback fucntion\n");
                         }
                     }
-                    else
+                    else if (--liveness == 0)
                     {
-                        // to do , do some other work, eg: check if the heartbeat is lost
+
+                        std::cout << "W: (" << identity << ") heartbeat failure, can't reach queue" << std::endl;
+                        std::cout << "W: (" << identity << ") reconnecting in " << interval << " msec..." << std::endl;
+                        s_sleep(interval);
+
+                        if (interval < INTERVAL_MAX)
+                        {
+                            interval *= 2;
+                        }
+                        delete worker;
+                        worker = s_worker_socket(context);
+                        liveness = HEARTBEAT_LIVENESS;
                     }
-                    // to do : add some code eg:check if it is the time that we should send heartbeat
+                    //  Send heartbeat to queue if it's time
+                    if (s_clock() > heartbeat_at)
+                    {
+                        heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
+                        logger->error(ZMQ_LOG, " (%s) worker heartbeat\n", identity_.c_str());
+                        s_send(worker_socket_, "HEARTBEAT");
+                    }
                 }
                 else
                 {
-                    std::cout << " epoll timeout !" << std::endl;
+                    logger->error(ZMQ_LOG, " epoll timeout !\n");
+                    // now epoll forever should not run to here
                     // to do, signal the monitor thread
                 }
             }
             catch (std::exception &e)
             {
-                //std::unique_lock<std::mutex> monitor_lock(monitor_mutex);
-                //monitor_cond.notify_all();
-                //return false;
+                logger->error(ZMQ_LOG, " something wrong while polling message\n");
             }
         }
     }
 
   private:
-    // this is for test
-    //int seq_num;
+    std::string identity_;
+    std::string monitor_path;
     SERVER_CB_FUNC *cb_;
     MONITOR_CB_FUNC *monitor_cb;
     std::string IP_and_port_dest;
