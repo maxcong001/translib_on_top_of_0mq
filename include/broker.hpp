@@ -245,8 +245,11 @@ class broker_base
                 //  Send heartbeats to idle workers if it's time
                 if (s_clock() > heartbeat_at)
                 {
+                    logger->debug(ZMQ_LOG, "\[BROKER\] now it is time to send heart beat, %d workers avaliable\n", queue.size());
+
                     for (std::vector<worker_t>::iterator it = queue.begin(); it < queue.end(); it++)
                     {
+                        logger->debug(ZMQ_LOG, "\[BROKER\] send heart beat to ID: %s\n", it->identity.c_str());
                         zmsg msg("HEARTBEAT");
                         msg.wrap(it->identity.c_str(), NULL);
                         msg.send(backend_socket_);

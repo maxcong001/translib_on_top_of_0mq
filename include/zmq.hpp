@@ -45,6 +45,7 @@
 #include <exception>
 #include <vector>
 #include <iterator>
+#include <iostream>
 
 #ifdef ZMQ_CPP11
 #include <chrono>
@@ -505,6 +506,7 @@ class socket_t
     {
         rhs.ptr = NULL;
     }
+
     inline socket_t &operator=(socket_t &&rhs) ZMQ_NOTHROW
     {
         std::swap(ptr, rhs.ptr);

@@ -18,6 +18,7 @@ server_base st1;
 worker_base wk1;
 worker_base wk2;
 worker_base wk3;
+worker_base wk4;
 std::mutex mtx;
 int message_count;
 
@@ -146,6 +147,7 @@ int main(void)
         ct1.stop();
     }
 #endif
+
     /************   this is DEALER<->(RTOUTER<->DEALER)<->DEALER  mode************/
     {
         logger->error(ZMQ_LOG, " ************   this is DEALER<->(RTOUTER<->RTOUTER)<->DEALER  mode************\n");
@@ -176,21 +178,21 @@ int main(void)
         // for server, you need to set callback function first
         wk1.set_cb(worker_cb_001);
         wk1.run();
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
         wk2.set_monitor_cb(server_monitor_func);
         // for server, you need to set callback function first
         wk2.set_cb(worker_cb_002);
         wk2.run();
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
         wk3.set_monitor_cb(server_monitor_func);
         // for server, you need to set callback function first
         wk3.set_cb(worker_cb_003);
         wk3.run();
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
-        for (int i = 0; i < 1000; i++)
+        for (int i = 0; i < 100; i++)
         {
             logger->debug(ZMQ_LOG, "send message now\n");
             std::this_thread::sleep_for(std::chrono::milliseconds(400));
@@ -198,9 +200,21 @@ int main(void)
             ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
         }
 
-        //broker_t.join();
         getchar();
-
-        return 0;
     }
+
+#if 0
+    {
+        /************  test worker recovery  ************/
+        logger->error(ZMQ_LOG, " ************   test worker recovery************\n");
+        wk4.set_monitor_cb(server_monitor_func);
+        // for server, you need to set callback function first
+        wk4.set_cb(worker_cb_001);
+        // invalid IP Port
+        wk4.setIPPort("127.0.0.1:12341");
+        wk4.run();
+        getchar();
+    }
+#endif
+    return 0;
 }

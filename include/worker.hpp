@@ -171,6 +171,7 @@ class worker_base
 
     bool monitor_task()
     {
+
         void *server_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
         if (!server_mon)
         {
@@ -232,9 +233,9 @@ class worker_base
     {
         worker_socket_.send(msg, len);
     }
-    bool start()
+    // ph1 mainly set the connection option and connect to the borker.
+    bool start_ph1()
     {
-
         // enable IPV6, we had already make sure that we are using TCP then we can set this option
         int enable_v6 = 1;
         if (zmq_setsockopt(worker_socket_, ZMQ_IPV6, &enable_v6, sizeof(enable_v6)) < 0)
@@ -298,24 +299,35 @@ class worker_base
 
             logger->debug(ZMQ_LOG, "\[WORKER\] connect to : %s\n", IPPort.c_str());
             worker_socket_.connect(IPPort);
+            // tell the broker that we are ready
+            std::string ready_str("READY");
+            send(ready_str.c_str(), ready_str.size());
         }
         catch (std::exception &e)
         {
             logger->error(ZMQ_LOG, "\[WORKER\] connect fail!!!!\n");
             return false;
         }
-        // tell the broker that we are ready
-        std::string ready_str("READY");
-        send(ready_str.c_str(), ready_str.size());
+        return true;
+    }
+    bool start()
+    {
+        if (!start_ph1())
+        {
+            return false;
+        }
 
         //  Send out heartbeats at regular intervals
         int64_t heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
+        size_t liveness = HEARTBEAT_LIVENESS;
+        size_t interval = INTERVAL_INIT;
 
         //  Initialize poll set
-        zmq::pollitem_t items[] = {
-            {worker_socket_, 0, ZMQ_POLLIN, 0}};
+
         while (1)
         {
+            zmq::pollitem_t items[] = {
+                {worker_socket_, 0, ZMQ_POLLIN, 0}};
             if (should_exit_routine_task)
             {
                 logger->warn(ZMQ_LOG, "will exit monitor task\n");
@@ -323,8 +335,8 @@ class worker_base
             }
             try
             {
-                // by default we wait for 500ms then so something. like hreatbeat
-                zmq::poll(items, 1, -1);
+                // by default we wait for 1000ms then so something. like hreatbeat
+                zmq::poll(items, 1, HEARTBEAT_INTERVAL);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
 
@@ -338,6 +350,29 @@ class worker_base
                     // this is the normal message
                     if (msg->parts() == 3)
                     {
+#if 0
+                        ///// this is for test, simulate various problems after a fwe cycles
+                        static int cycles;
+                        cycles++;
+/*
+                        if (cycles > 3 && within(5) == 0)
+                        {
+                            logger->debug(ZMQ_LOG, "Simulate a crash, ID : %s, cycle is %d\n", identity_.c_str(), cycles);
+                            msg->clear();
+                            continue;
+                        }
+                        else
+                        {*/
+#if 0
+                        if (cycles > 3 && within(5) == 0)
+                        {
+                            logger->debug(ZMQ_LOG, " simulating CPU overload, ID : %s, cycle is %d\n", identity_.c_str(), cycles);
+                            sleep(5);
+                        }
+#endif
+                        // }
+                        //liveness = 1;
+#endif
                         std::string data = msg->get_body();
                         if (data.empty())
                         {
@@ -361,34 +396,56 @@ class worker_base
                             logger->error(ZMQ_LOG, " no valid callback function, please make sure you had set message callback fucntion\n");
                         }
                     }
-                    else if (--liveness == 0)
+                    else
                     {
-
-                        std::cout << "W: (" << identity << ") heartbeat failure, can't reach queue" << std::endl;
-                        std::cout << "W: (" << identity << ") reconnecting in " << interval << " msec..." << std::endl;
-                        s_sleep(interval);
-
-                        if (interval < INTERVAL_MAX)
+                        if (msg->parts() == 1 && strcmp(msg->body(), "HEARTBEAT") == 0)
                         {
-                            interval *= 2;
+                            liveness = HEARTBEAT_LIVENESS;
                         }
-                        delete worker;
-                        worker = s_worker_socket(context);
-                        liveness = HEARTBEAT_LIVENESS;
+                        else
+                        {
+                            logger->warn(ZMQ_LOG, "invalid message, %s\n", identity_.c_str());
+                            msg->dump();
+                        }
                     }
-                    //  Send heartbeat to queue if it's time
-                    if (s_clock() > heartbeat_at)
-                    {
-                        heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
-                        logger->error(ZMQ_LOG, " (%s) worker heartbeat\n", identity_.c_str());
-                        s_send(worker_socket_, "HEARTBEAT");
-                    }
+                    interval = INTERVAL_INIT;
                 }
-                else
+                // epoll time out
+                else if (--liveness == 0)
                 {
-                    logger->error(ZMQ_LOG, " epoll timeout !\n");
-                    // now epoll forever should not run to here
-                    // to do, signal the monitor thread
+
+                    logger->warn(ZMQ_LOG, " heartbeat failure, can't reach queue, identity : (%s) \n", identity_.c_str());
+                    logger->warn(ZMQ_LOG, " reconnecting in  %d msec..., identity : (%s)", interval, identity_.c_str());
+                    s_sleep(interval);
+
+                    if (interval < INTERVAL_MAX)
+                    {
+                        interval *= 2;
+                    }
+                    // stop the worker and start again
+                    try
+                    {
+                        worker_socket_.close();
+                        zmq::socket_t tmp_worker(ctx_, ZMQ_DEALER);
+                        //worker = s_worker_socket(context);
+                        worker_socket_ = std::move(tmp_worker);
+                        if (!start_ph1())
+                        {
+                            logger->warn(ZMQ_LOG, " connect to broker return fail!\n");
+                        }
+                    }
+                    catch (std::exception &e)
+                    {
+                        logger->error(ZMQ_LOG, " restart worker socket fail!\n");
+                    }
+                    liveness = HEARTBEAT_LIVENESS;
+                }
+                //  Send heartbeat to queue if it's time
+                if (s_clock() > heartbeat_at)
+                {
+                    heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
+                    logger->debug(ZMQ_LOG, " (%s) worker heartbeat\n", identity_.c_str());
+                    s_send(worker_socket_, "HEARTBEAT");
                 }
             }
             catch (std::exception &e)
