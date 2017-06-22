@@ -56,7 +56,7 @@ The TCP port number may be specified by:
 ### Examples:
 
 Assigning a local address to a socket
-``
+```
 // TCP port 5555 on all available interfaces
 rc = zmq_bind(socket, "tcp://*:5555");
 assert (rc == 0);
