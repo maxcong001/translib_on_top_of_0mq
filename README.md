@@ -40,3 +40,44 @@ Synchronous calls block until a response arrives from the server. This mode is s
 MMQ is pretty easy to use, just see the [example](example) 
 
 
+
+## Connection interface
+An interface may be specified by either of the following:
+
+    The wild-card *, meaning all available interfaces.
+    The primary IPv4 or IPv6 address assigned to the interface, in its numeric representation.
+    The non-portable interface name as defined by the operating system.
+
+The TCP port number may be specified by:
+
+    A numeric value, usually above 1024 on POSIX systems.
+    The wild-card *, meaning a system-assigned ephemeral port.
+
+### Examples:
+
+Assigning a local address to a socket
+``
+// TCP port 5555 on all available interfaces
+rc = zmq_bind(socket, "tcp://*:5555");
+assert (rc == 0);
+// TCP port 5555 on the local loop-back interface on all platforms
+rc = zmq_bind(socket, "tcp://127.0.0.1:5555");
+assert (rc == 0);
+// TCP port 5555 on the first Ethernet network interface on Linux
+rc = zmq_bind(socket, "tcp://eth0:5555"); assert (rc == 0);
+```
+Connecting a socket
+```
+// Connecting using an IP address
+rc = zmq_connect(socket, "tcp://192.168.1.1:5555");
+assert (rc == 0);
+// Connecting using a DNS name
+rc = zmq_connect(socket, "tcp://server1:5555");
+assert (rc == 0);
+// Connecting using a DNS name and bind to eth1
+rc = zmq_connect(socket, "tcp://eth1:0;server1:5555");
+assert (rc == 0);
+// Connecting using a IP address and bind to an IP address
+rc = zmq_connect(socket, "tcp://192.168.1.17:5555;192.168.1.1:5555"); assert (rc == 0);
+```
+

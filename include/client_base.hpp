@@ -34,6 +34,9 @@ class client_base
         cb_ = NULL;
         routine_thread = NULL;
         should_stop = false;
+        protocol = "tcp://";
+        IP_and_port_dest = "127.0.0.1:5561";
+        should_stop = false;
     }
     client_base(std::string IPPort) : ctx_(1),
                                       client_socket_(ctx_, ZMQ_DEALER)
@@ -50,6 +53,10 @@ class client_base
         }
         cb_ = NULL;
         routine_thread = NULL;
+        protocol = "tcp://";
+        IP_and_port_dest = IPPort;
+        should_stop = false;
+
         run();
     }
 
@@ -57,6 +64,15 @@ class client_base
     {
         stop();
     }
+    void set_protocol(std::string protocol_)
+    {
+        protocol = protocol_;
+    }
+    std::string get_protocol()
+    {
+        return protocol;
+    }
+
     struct usrdata_and_cb
     {
         void *usr_data;
@@ -307,11 +323,11 @@ class client_base
             // should be like this tcp://192.168.1.17:5555;192.168.1.1:5555
             if (IP_and_port_source.empty())
             {
-                IPPort += "tcp://" + IP_and_port_dest;
+                IPPort += protocol + IP_and_port_dest;
             }
             else
             {
-                IPPort += "tcp://" + IP_and_port_source + ";" + IP_and_port_dest;
+                IPPort += protocol + IP_and_port_source + ";" + IP_and_port_dest;
             }
             logger->debug(ZMQ_LOG, "\[CLIENT\] connect to : %s\n", IPPort.c_str());
             client_socket_.connect(IPPort);
@@ -374,6 +390,7 @@ class client_base
     std::string monitor_path;
     std::string IP_and_port_dest;
     std::string IP_and_port_source;
+    std::string protocol;
     std::unordered_set<void *> sand_box;
     USR_CB_FUNC *cb_;
     zmq::context_t ctx_;

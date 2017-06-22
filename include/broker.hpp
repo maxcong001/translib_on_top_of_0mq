@@ -36,6 +36,24 @@ class broker_base
     {
         return frontend_IPPort;
     }
+
+    void set_frontend_protocol(std::string protocol)
+    {
+        frontend_protocol = protocol;
+    }
+    std::string get_frontend_protocol()
+    {
+        return frontend_protocol;
+    }
+    void set_backtend_protocol(std::string protocol)
+    {
+        backend_protocol = protocol;
+    }
+    std::string get_backtend_protocol()
+    {
+        return backend_protocol;
+    }
+
     void set_backtend_IPPort(std::string IPPort)
     {
         backend_IPPort = IPPort;

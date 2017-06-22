@@ -67,7 +67,7 @@ void logging_cb(const char *file_ptr, int line, const char *func_ptr, Logger::Le
 //std::lock_guard<std::mutex> lock(mtx);
 void client_cb_001(const char *msg, size_t len, void *usr_data)
 {
-    std::cout << "receive message form server : \"" << (std::string(msg, len)) << "\" with user data : " << usr_data << std::endl;
+    std::cout << "receive message form server : \"" << (std::string(msg, len)) << " \", len is : " << len << " , with user data : " << usr_data << std::endl;
 }
 void server_cb_001(const char *data, size_t len, void *ID)
 {
@@ -94,7 +94,7 @@ void worker_cb_003(const char *data, size_t len, void *ID)
 }
 void client_monitor_func(int event, int value, std::string &address)
 {
-    std::cout << "receive event form client monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
+    std::cout << "receive event form client monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << "string length is : " << address.size() << std::endl;
 }
 void server_monitor_func(int event, int value, std::string &address)
 {
@@ -151,7 +151,10 @@ int main(void)
     /************   this is DEALER<->(RTOUTER<->DEALER)<->DEALER  mode************/
     {
         logger->error(ZMQ_LOG, " ************   this is DEALER<->(RTOUTER<->RTOUTER)<->DEALER  mode************\n");
-        std::string test_str = "this is for test!";
+        // test if the API is binary safe
+        char tmp_str[20] = "this is for test!";
+        tmp_str[2] = 0;
+        std::string test_str(tmp_str, 20);
         void *user_data = (void *)28;
         // there will be three part
         // 1. client part

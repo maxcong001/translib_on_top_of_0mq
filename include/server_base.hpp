@@ -37,6 +37,7 @@ class server_base
                << std::setw(4) << std::setfill('0') << within(0x10000);
             monitor_path = "inproc://" + ss.str();
         }
+        protocol = "tcp://";
     }
     ~server_base()
     {
@@ -51,7 +52,14 @@ class server_base
             monitor_thread->join();
         }
     }
-
+    void set_protocol(std::string protocol_)
+    {
+        protocol = protocol_;
+    }
+    std::string get_protocol()
+    {
+        return protocol;
+    }
     bool run()
     {
         auto routine_fun = std::bind(&server_base::start, this);
@@ -258,7 +266,7 @@ class server_base
                 return false;
             }
             std::string tmp;
-            tmp += "tcp://" + IP_and_port;
+            tmp += protocol + IP_and_port;
             server_socket_.bind(tmp);
         }
         catch (std::exception &e)
@@ -329,6 +337,7 @@ class server_base
     SERVER_CB_FUNC *cb_;
     MONITOR_CB_FUNC *monitor_cb;
     std::string IP_and_port;
+    std::string protocol;
     zmq::context_t ctx_;
     zmq::socket_t server_socket_;
     std::atomic<long> uniqueID_atomic;

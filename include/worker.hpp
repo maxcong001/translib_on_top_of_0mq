@@ -21,6 +21,8 @@ class worker_base
         : ctx_(1),
           worker_socket_(ctx_, ZMQ_DEALER), uniqueID_atomic(1)
     {
+        protocol = "tcp://";
+
         IP_and_port_dest = "127.0.0.1:5560";
         monitor_cb = NULL;
         routine_thread = NULL;
@@ -82,6 +84,14 @@ class worker_base
             logger->error(ZMQ_LOG, "start monitor socket fail!\n");
             return false;
         }
+    }
+    void set_protocol(std::string protocol_)
+    {
+        protocol = protocol_;
+    }
+    std::string get_protocol()
+    {
+        return protocol;
     }
     void setIPPort(std::string ipport)
     {
@@ -290,11 +300,11 @@ class worker_base
 
             if (IP_and_port_source.empty())
             {
-                IPPort += "tcp://" + IP_and_port_dest;
+                IPPort += protocol + IP_and_port_dest;
             }
             else
             {
-                IPPort += "tcp://" + IP_and_port_source + ";" + IP_and_port_dest;
+                IPPort += protocol + IP_and_port_source + ";" + IP_and_port_dest;
             }
 
             logger->debug(ZMQ_LOG, "\[WORKER\] connect to : %s\n", IPPort.c_str());
@@ -461,7 +471,9 @@ class worker_base
     SERVER_CB_FUNC *cb_;
     MONITOR_CB_FUNC *monitor_cb;
     std::string IP_and_port_dest;
+    std::string protocol;
     std::string IP_and_port_source;
+
     zmq::context_t ctx_;
     zmq::socket_t worker_socket_;
     std::atomic<long> uniqueID_atomic;
