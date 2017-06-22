@@ -1,4 +1,4 @@
-[MMQ - An transport library based on 0MQ](https://github.com/maxcong001/translib_on_top_of_0mq/edit/master/README.md)
+[MMQ - An transport library based on 0MQ](https://github.com/maxcong001/translib_on_top_of_0mq)
 ===================================
 
 Copyright Max Cong.
@@ -10,6 +10,7 @@ You can find more detailed documentation and examples in the [doc](doc) and [exa
 # Installation & Testing
 
 See [INSTALL](INSTALL.md) for installation instructions for various platforms.
+
 
 See [test](test) for more guidance on how to run various test suites (e.g. unit tests, interop tests, benchmarks)
 
