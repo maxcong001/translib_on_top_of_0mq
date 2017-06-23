@@ -234,6 +234,8 @@ class broker_base
                         {
                             if (strcmp(msg.address(), "HEARTBEAT") == 0)
                             {
+                                //s_worker_delete(identity);
+                                s_worker_append(identity);
                                 logger->debug(ZMQ_LOG, "\[BROKER\] receive HEARTBEAT message from backend");
                                 s_worker_refresh(identity);
                             }

@@ -442,7 +442,14 @@ class worker_base
                         if (!start_ph1())
                         {
                             logger->warn(ZMQ_LOG, " connect to broker return fail!\n");
+                            continue;
                         }
+                        /*
+                        if (!monitor_this_socket())
+                        {
+                            logger->warn(ZMQ_LOG, "start monitor fail!\n");
+                            continue;
+                        }*/
                     }
                     catch (std::exception &e)
                     {

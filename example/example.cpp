@@ -195,16 +195,20 @@ int main(void)
         wk3.run();
         //std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < 10; i++)
         {
             logger->debug(ZMQ_LOG, "send message now\n");
             std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
             ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
         }
-
-        getchar();
+        while (1)
+        {
+            getchar();
+            ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+        }
     }
+
 
 #if 0
     {
