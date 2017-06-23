@@ -21,6 +21,7 @@ worker_base wk3;
 worker_base wk4;
 std::mutex mtx;
 int message_count;
+int message_count_recv;
 
 size_t time_str(uint32_t secs, uint32_t msec, char *out_ptr, size_t sz)
 {
@@ -67,7 +68,7 @@ void logging_cb(const char *file_ptr, int line, const char *func_ptr, Logger::Le
 //std::lock_guard<std::mutex> lock(mtx);
 void client_cb_001(const char *msg, size_t len, void *usr_data)
 {
-    std::cout << "receive message form server : \"" << (std::string(msg, len)) << " \", len is : " << len << " , with user data : " << usr_data << std::endl;
+    std::cout << "receive message form server : \"" << (std::string(msg, len)) << " \", len is : " << len << " , with user data : " << usr_data << " total message: " << message_count_recv++ << std::endl;
 }
 void server_cb_001(const char *data, size_t len, void *ID)
 {
@@ -103,7 +104,7 @@ void server_monitor_func(int event, int value, std::string &address)
 int main(void)
 {
 
-    LogManager::getLogger(logging_cb)->setLevel(Logger::ALL);
+    LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
 
 //    logger->error(ZMQ_LOG, "hello world\n");
 /************this is DEALER <->ROUTER MODE ************/
@@ -208,7 +209,6 @@ int main(void)
             ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
         }
     }
-
 
 #if 0
     {

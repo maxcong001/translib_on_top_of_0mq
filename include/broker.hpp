@@ -66,7 +66,7 @@ class broker_base
     {
         if (frontend_IPPort.empty())
         {
-            logger->error(ZMQ_LOG, "IP or Port is empty! please make sure you had set the IP and Port\n");
+            logger->error(ZMQ_LOG, "\[BROKER\] IP or Port is empty! please make sure you had set the IP and Port\n");
             return false;
         }
 
@@ -76,7 +76,7 @@ class broker_base
         {
             frontend_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set ZMQ_IPV6 return fail\n");
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_IPV6 return fail\n");
             return false;
         }
         /*
@@ -92,7 +92,7 @@ class broker_base
         {
             frontend_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set ZMQ_LINGER return fail\n");
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_LINGER return fail\n");
             return false;
         }
         /*
@@ -109,14 +109,14 @@ class broker_base
         {
             frontend_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set ZMQ_RCVTIMEO return fail\n");
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_RCVTIMEO return fail\n");
             return false;
         }
         if (zmq_setsockopt(frontend_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
         {
             frontend_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set ZMQ_SNDTIMEO return fail\n");
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_SNDTIMEO return fail\n");
             return false;
         }
 
@@ -126,7 +126,7 @@ class broker_base
         {
             backend_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set ZMQ_IPV6 for back-end return fail\n");
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_IPV6 for back-end return fail\n");
             return false;
         }
         /*
@@ -142,7 +142,7 @@ class broker_base
         {
             backend_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set ZMQ_LINGER for back-end return fail\n");
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_LINGER for back-end return fail\n");
             return false;
         }
         /*
@@ -159,14 +159,14 @@ class broker_base
         {
             backend_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set ZMQ_RCVTIMEO for back-end return fail\n");
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_RCVTIMEO for back-end return fail\n");
             return false;
         }
         if (zmq_setsockopt(backend_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
         {
             backend_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set ZMQ_SNDTIMEO for back-end return fail\n");
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_SNDTIMEO for back-end return fail\n");
 
             return false;
         }
@@ -179,7 +179,7 @@ class broker_base
         catch (std::exception &e)
         {
             // log here
-            logger->error(ZMQ_LOG, "frontend fail, IPPort is %s", (frontend_protocol + frontend_IPPort).c_str());
+            logger->error(ZMQ_LOG, "\[BROKER\] frontend fail, IPPort is %s", (frontend_protocol + frontend_IPPort).c_str());
             return false;
         }
         try
@@ -235,13 +235,13 @@ class broker_base
                             if (strcmp(msg.address(), "HEARTBEAT") == 0)
                             {
                                 //s_worker_delete(identity);
-                                s_worker_append(identity);
+                                //s_worker_append(identity);
                                 logger->debug(ZMQ_LOG, "\[BROKER\] receive HEARTBEAT message from backend");
                                 s_worker_refresh(identity);
                             }
                             else
                             {
-                                logger->warn(ZMQ_LOG, "invalid message from %s\n", identity.c_str());
+                                logger->warn(ZMQ_LOG, "\[BROKER\] invalid message from %s\n", identity.c_str());
                                 msg.dump();
                             }
                         }
@@ -281,11 +281,11 @@ class broker_base
             catch (std::exception &e)
             {
                 // log here
-                logger->error(ZMQ_LOG, "start broker fail\n");
+                logger->error(ZMQ_LOG, "\[BROKER\] start broker fail\n");
                 return false;
             }
         }
-        logger->error(ZMQ_LOG, "should not run into here!!!!!!!!!!!!!!\n");
+        logger->error(ZMQ_LOG, "\[BROKER\] should not run into here!!!!!!!!!!!!!!\n");
     }
 
     // for queue related
@@ -299,7 +299,7 @@ class broker_base
         {
             if (it->identity.compare(identity) == 0)
             {
-                logger->debug(ZMQ_LOG, "duplicate worker identity %s\n", identity.c_str());
+                //logger->debug(ZMQ_LOG, "\[BROKER\] duplicate worker identity %s\n", identity.c_str());
                 found = true;
                 break;
             }
@@ -341,7 +341,7 @@ class broker_base
         }
         if (!found)
         {
-            logger->warn(ZMQ_LOG, "worker %s not ready", identity.c_str());
+            logger->warn(ZMQ_LOG, "\[BROKER\] worker %s not ready", identity.c_str());
         }
     }
 

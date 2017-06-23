@@ -81,7 +81,7 @@ class worker_base
         }
         else
         {
-            logger->error(ZMQ_LOG, "start monitor socket fail!\n");
+            logger->error(ZMQ_LOG, "\[WORKER\] start monitor socket fail!\n");
             return false;
         }
     }
@@ -117,7 +117,7 @@ class worker_base
         }
         else
         {
-            logger->error(ZMQ_LOG, "invalid callback function\n");
+            logger->error(ZMQ_LOG, "\[WORKER\] invalid callback function\n");
         }
     }
 
@@ -137,7 +137,7 @@ class worker_base
         }
         else
         {
-            logger->error(ZMQ_LOG, "did not find the ID\n");
+            logger->error(ZMQ_LOG, "\[WORKER\] did not find the ID\n");
             return -1;
         }
     }
@@ -150,7 +150,7 @@ class worker_base
         }
         else
         {
-            logger->error(ZMQ_LOG, "invalid montior callback function \n");
+            logger->error(ZMQ_LOG, "\[WORKER\] invalid montior callback function \n");
         }
     }
 
@@ -185,7 +185,7 @@ class worker_base
         void *server_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
         if (!server_mon)
         {
-            logger->error(ZMQ_LOG, "0MQ get socket fail\n");
+            logger->error(ZMQ_LOG, "\[WORKER\] 0MQ get socket fail\n");
             return false;
         }
         try
@@ -197,13 +197,13 @@ class worker_base
             //rc should be 0 if success
             if (rc)
             {
-                logger->error(ZMQ_LOG, "0MQ connect fail\n");
+                logger->error(ZMQ_LOG, "\[WORKER\] 0MQ connect fail\n");
                 return false;
             }
         }
         catch (std::exception &e)
         {
-            logger->error(ZMQ_LOG, "connect to monitor worker socket fail\n");
+            logger->error(ZMQ_LOG, "\[WORKER\] connect to monitor worker socket fail\n");
             return false;
         }
 
@@ -211,7 +211,7 @@ class worker_base
         {
             if (should_exit_monitor_task)
             {
-                logger->warn(ZMQ_LOG, "will exit monitor task\n");
+                logger->warn(ZMQ_LOG, "\[WORKER\] will exit monitor task\n");
                 return true;
             }
             std::string address;
@@ -219,7 +219,7 @@ class worker_base
             int event = get_monitor_event(server_mon, &value, address);
             if (event == -1)
             {
-                logger->warn(ZMQ_LOG, "get monitor event fail\n");
+                logger->warn(ZMQ_LOG, "\[WORKER\] get monitor event fail\n");
                 //return false;
             }
 
@@ -252,7 +252,7 @@ class worker_base
         {
             worker_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set socket option ZMQ_IPV6 fail\n");
+            logger->error(ZMQ_LOG, "\[WORKER\] set socket option ZMQ_IPV6 fail\n");
             return false;
         }
 
@@ -264,7 +264,7 @@ class worker_base
         {
             worker_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set socket option ZMQ_LINGER fail\n");
+            logger->error(ZMQ_LOG, "\[WORKER\] set socket option ZMQ_LINGER fail\n");
             return false;
         }
         /*
@@ -281,14 +281,14 @@ class worker_base
         {
             worker_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set socket option ZMQ_RCVTIMEO fail\n");
+            logger->error(ZMQ_LOG, "\[WORKER\] set socket option ZMQ_RCVTIMEO fail\n");
             return false;
         }
         if (zmq_setsockopt(worker_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
         {
             worker_socket_.close();
             ctx_.close();
-            logger->error(ZMQ_LOG, "set socket option ZMQ_SNDTIMEO fail\n");
+            logger->error(ZMQ_LOG, "\[WORKER\] set socket option ZMQ_SNDTIMEO fail\n");
 
             return false;
         }
@@ -340,7 +340,7 @@ class worker_base
                 {worker_socket_, 0, ZMQ_POLLIN, 0}};
             if (should_exit_routine_task)
             {
-                logger->warn(ZMQ_LOG, "will exit monitor task\n");
+                logger->warn(ZMQ_LOG, "\[WORKER\] will exit monitor task\n");
                 return true;
             }
             try
@@ -355,7 +355,7 @@ class worker_base
 
                     zmsg_ptr msg(new zmsg(worker_socket_));
                     logger->debug(ZMQ_LOG, "\[WORKER\] get message from broker with %d part", msg->parts());
-                    msg->dump();
+                    //msg->dump();
                     // now we get the message .
                     // this is the normal message
                     if (msg->parts() == 3)
@@ -367,7 +367,7 @@ class worker_base
 /*
                         if (cycles > 3 && within(5) == 0)
                         {
-                            logger->debug(ZMQ_LOG, "Simulate a crash, ID : %s, cycle is %d\n", identity_.c_str(), cycles);
+                            logger->debug(ZMQ_LOG, "\[WORKER\] Simulate a crash, ID : %s, cycle is %d\n", identity_.c_str(), cycles);
                             msg->clear();
                             continue;
                         }
@@ -376,7 +376,7 @@ class worker_base
 #if 0
                         if (cycles > 3 && within(5) == 0)
                         {
-                            logger->debug(ZMQ_LOG, " simulating CPU overload, ID : %s, cycle is %d\n", identity_.c_str(), cycles);
+                            logger->debug(ZMQ_LOG, "\[WORKER\]  simulating CPU overload, ID : %s, cycle is %d\n", identity_.c_str(), cycles);
                             sleep(5);
                         }
 #endif
@@ -386,7 +386,7 @@ class worker_base
                         std::string data = msg->get_body();
                         if (data.empty())
                         {
-                            logger->warn(ZMQ_LOG, "we get a message without body\n");
+                            logger->warn(ZMQ_LOG, "\[WORKER\] we get a message without body\n");
                             continue;
                         }
                         void *ID = getUniqueID();
@@ -403,7 +403,7 @@ class worker_base
                         }
                         else
                         {
-                            logger->error(ZMQ_LOG, " no valid callback function, please make sure you had set message callback fucntion\n");
+                            logger->error(ZMQ_LOG, "\[WORKER\]  no valid callback function, please make sure you had set message callback fucntion\n");
                         }
                     }
                     else
@@ -414,7 +414,7 @@ class worker_base
                         }
                         else
                         {
-                            logger->warn(ZMQ_LOG, "invalid message, %s\n", identity_.c_str());
+                            logger->warn(ZMQ_LOG, "\[WORKER\] invalid message, %s\n", identity_.c_str());
                             msg->dump();
                         }
                     }
@@ -424,8 +424,8 @@ class worker_base
                 else if (--liveness == 0)
                 {
 
-                    logger->warn(ZMQ_LOG, " heartbeat failure, can't reach queue, identity : (%s) \n", identity_.c_str());
-                    logger->warn(ZMQ_LOG, " reconnecting in  %d msec..., identity : (%s)", interval, identity_.c_str());
+                    logger->warn(ZMQ_LOG, "\[WORKER\]  heartbeat failure, can't reach queue, identity : (%s) \n", identity_.c_str());
+                    logger->warn(ZMQ_LOG, "\[WORKER\]  reconnecting in  %d msec..., identity : (%s)", interval, identity_.c_str());
                     s_sleep(interval);
 
                     if (interval < INTERVAL_MAX)
@@ -441,19 +441,19 @@ class worker_base
                         worker_socket_ = std::move(tmp_worker);
                         if (!start_ph1())
                         {
-                            logger->warn(ZMQ_LOG, " connect to broker return fail!\n");
+                            logger->warn(ZMQ_LOG, "\[WORKER\]  connect to broker return fail!\n");
                             continue;
                         }
                         /*
                         if (!monitor_this_socket())
                         {
-                            logger->warn(ZMQ_LOG, "start monitor fail!\n");
+                            logger->warn(ZMQ_LOG, "\[WORKER\] start monitor fail!\n");
                             continue;
                         }*/
                     }
                     catch (std::exception &e)
                     {
-                        logger->error(ZMQ_LOG, " restart worker socket fail!\n");
+                        logger->error(ZMQ_LOG, "\[WORKER\]  restart worker socket fail!\n");
                     }
                     liveness = HEARTBEAT_LIVENESS;
                 }
@@ -461,13 +461,13 @@ class worker_base
                 if (s_clock() > heartbeat_at)
                 {
                     heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
-                    logger->debug(ZMQ_LOG, " (%s) worker heartbeat\n", identity_.c_str());
+                    logger->debug(ZMQ_LOG, "\[WORKER\]  (%s) worker heartbeat\n", identity_.c_str());
                     s_send(worker_socket_, "HEARTBEAT");
                 }
             }
             catch (std::exception &e)
             {
-                logger->error(ZMQ_LOG, " something wrong while polling message\n");
+                logger->error(ZMQ_LOG, "\[WORKER\]  something wrong while polling message\n");
             }
         }
     }

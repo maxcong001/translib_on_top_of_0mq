@@ -14,10 +14,11 @@
 // typedef void USR_CB_FUNC(char *msg, size_t len, void *usr_data);
 //server_base st1;
 std::mutex mtx;
+int count;
 //std::lock_guard<std::mutex> lock(mtx);
 void client_cb_001(const char *msg, size_t len, void *usr_data)
 {
-	std::cout << "receive message form server : \"" << (std::string(msg, len)) << "\" with user data : " << usr_data << std::endl;
+	std::cout << "receive message form server : \"" << (std::string(msg, len)) << "\" with user data : " << usr_data << " message count : " << count++ << std::endl;
 }
 /*
 void server_cb_001(const char *data, size_t len, void *ID)
@@ -64,9 +65,10 @@ int main(void)
 	while (1)
 	{
 		//getchar();
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		for (int i = 0; i < 1000; i++)
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		for (int i = 0; i < 4; i++)
 		{
+
 			ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
 			//ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
 			//ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));

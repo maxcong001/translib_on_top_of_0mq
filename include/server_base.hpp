@@ -75,7 +75,7 @@ class server_base
         }
         else
         {
-            logger->error(ZMQ_LOG, "start monitor socket fail!\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] start monitor socket fail!\n");
             return false;
         }
         return ret;
@@ -97,7 +97,7 @@ class server_base
         }
         else
         {
-            logger->error(ZMQ_LOG, "invalid callback function\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] invalid callback function\n");
         }
     }
 
@@ -117,7 +117,7 @@ class server_base
         }
         else
         {
-            logger->error(ZMQ_LOG, "did not find the ID\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] did not find the ID\n");
             return -1;
         }
         return len;
@@ -131,7 +131,7 @@ class server_base
         }
         else
         {
-            logger->error(ZMQ_LOG, "invalid callback fucntion\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] invalid callback fucntion\n");
         }
     }
 
@@ -166,7 +166,7 @@ class server_base
         void *server_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
         if (!server_mon)
         {
-            logger->error(ZMQ_LOG, "get 0MQ socket fail\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] get 0MQ socket fail\n");
             return false;
         }
         int rc = zmq_connect(server_mon, monitor_path.c_str());
@@ -174,14 +174,14 @@ class server_base
         //rc should be 0 if success
         if (rc)
         {
-            logger->error(ZMQ_LOG, "connect fail\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] connect fail\n");
             return false;
         }
         while (1)
         {
             if (should_exit_monitor_task)
             {
-                logger->warn(ZMQ_LOG, "monitor task will exit\n");
+                logger->warn(ZMQ_LOG, "\[SERVER\] monitor task will exit\n");
                 return true;
             }
             std::string address;
@@ -189,7 +189,7 @@ class server_base
             int event = get_monitor_event(server_mon, &value, address);
             if (event == -1)
             {
-                logger->error(ZMQ_LOG, "get monitor event fail\n");
+                logger->error(ZMQ_LOG, "\[SERVER\] get monitor event fail\n");
                 //return false;
             }
 
@@ -220,7 +220,7 @@ class server_base
         {
             zmq_close(server_socket_);
             zmq_ctx_destroy(&ctx_);
-            logger->error(ZMQ_LOG, "set socket optioon ZMQ_IPV6 fail\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] set socket optioon ZMQ_IPV6 fail\n");
             return false;
         }
         /*
@@ -237,14 +237,14 @@ class server_base
         {
             zmq_close(server_socket_);
             zmq_ctx_destroy(&ctx_);
-            logger->error(ZMQ_LOG, "set socket optioon ZMQ_RCVTIMEO fail\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] set socket optioon ZMQ_RCVTIMEO fail\n");
             return false;
         }
         if (zmq_setsockopt(server_socket_, ZMQ_SNDTIMEO, &iRcvTimeout, sizeof(iRcvTimeout)) < 0)
         {
             zmq_close(server_socket_);
             zmq_ctx_destroy(&ctx_);
-            logger->error(ZMQ_LOG, "set socket optioon ZMQ_SNDTIMEO fail\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] set socket optioon ZMQ_SNDTIMEO fail\n");
 
             return false;
         }
@@ -254,7 +254,7 @@ class server_base
         {
             zmq_close(server_socket_);
             zmq_ctx_destroy(&ctx_);
-            logger->error(ZMQ_LOG, "set socket optioon ZMQ_LINGER fail\n");
+            logger->error(ZMQ_LOG, "\[SERVER\] set socket optioon ZMQ_LINGER fail\n");
 
             return false;
         }
@@ -262,7 +262,7 @@ class server_base
         {
             if (IP_and_port.empty())
             {
-                logger->error(ZMQ_LOG, "please make sure you had set the IP and port info\n");
+                logger->error(ZMQ_LOG, "\[SERVER\] please make sure you had set the IP and port info\n");
                 return false;
             }
             std::string tmp;
@@ -271,7 +271,7 @@ class server_base
         }
         catch (std::exception &e)
         {
-            logger->error(ZMQ_LOG, " socket bind error\n");
+            logger->error(ZMQ_LOG, "\[SERVER\]  socket bind error\n");
             return false;
         }
 
@@ -282,7 +282,7 @@ class server_base
         {
             if (should_exit_routine_task)
             {
-                logger->warn(ZMQ_LOG, " server routine task will exit\n");
+                logger->warn(ZMQ_LOG, "\[SERVER\]  server routine task will exit\n");
                 return true;
             }
             try
@@ -298,7 +298,7 @@ class server_base
                     std::string data = msg->get_body();
                     if (data.empty())
                     {
-                        logger->warn(ZMQ_LOG, " get a message without body\n");
+                        logger->warn(ZMQ_LOG, "\[SERVER\]  get a message without body\n");
                         continue;
                     }
                     void *ID = getUniqueID();
@@ -315,17 +315,17 @@ class server_base
                     }
                     else
                     {
-                        logger->warn(ZMQ_LOG, " no invalid callback function, please make sure you had set it\n");
+                        logger->warn(ZMQ_LOG, "\[SERVER\]  no invalid callback function, please make sure you had set it\n");
                     }
                 }
                 else
                 {
-                    logger->error(ZMQ_LOG, "epoll error !\n");
+                    logger->error(ZMQ_LOG, "\[SERVER\] epoll error !\n");
                 }
             }
             catch (std::exception &e)
             {
-                logger->error(ZMQ_LOG, "catch exception. epoll error\n");
+                logger->error(ZMQ_LOG, "\[SERVER\] catch exception. epoll error\n");
             }
         }
         // should never return

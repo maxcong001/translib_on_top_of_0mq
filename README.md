@@ -21,6 +21,18 @@ See [test](test) for more guidance on how to run various test suites (e.g. unit 
 |-------------|-------------------------------------------------------|---------|
 | 2017/06/27  | add heart beat and worker recovery                    | 1.2     |
 
+# Known issue
+### If client send a mess number of messages(as we are async, these message will send immediately), then the client will exit with sig-abort. This is cause by 0MQ, when a larg amount of messages come at the same time, the link list corrupted.
+Now we had test send message 4,000/s, that is fine. 
+note: please do not write code like below(send to many messages in a while/for loop, we are async, will "send" immediately):
+```
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		for (int i = 0; i < 1000; i++)
+		{
+			ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+		}
+````
+### If client send message too fast, sometimes the program will hang at "poll" or "epoll wait". This is cause by 0MQ, that when we send a message, even in the async mode, it will wait for a "response". It hang waiting for "response" even we set the send/receive timeout to 5s.
 
 # Overview
 
