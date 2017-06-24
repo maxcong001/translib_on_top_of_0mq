@@ -354,11 +354,15 @@ class client_base
                 zmq::poll(items, 1, EPOLL_TIMEOUT);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
-                    std::lock_guard<M_MUTEX> glock(client_mutex);
-                    zmsg msg(client_socket_);
-                    logger->debug(ZMQ_LOG, "\[CLIENT\] rceive message with %d parts\n", msg.parts());
-                    std::string tmp_str = msg.get_body();
-                    std::string tmp_data_and_cb = msg.get_body();
+                    std::string tmp_str;
+                    std::string tmp_data_and_cb;
+                    {
+                        std::lock_guard<M_MUTEX> glock(client_mutex);
+                        zmsg msg(client_socket_);
+                        logger->debug(ZMQ_LOG, "\[CLIENT\] rceive message with %d parts\n", msg.parts());
+                        tmp_str = msg.get_body();
+                        tmp_data_and_cb = msg.get_body();
+                    }
                     usrdata_and_cb *usrdata_and_cb_p = (usrdata_and_cb *)(tmp_data_and_cb.c_str());
 
                     void *user_data = usrdata_and_cb_p->usr_data;

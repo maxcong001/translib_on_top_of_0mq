@@ -352,7 +352,7 @@ class worker_base
 
                     // this is for test, delete it later
                     //sleep(5);
-
+                    //std::lock_guard<M_MUTEX> wokerlock(worker_mutex);
                     zmsg_ptr msg(new zmsg(worker_socket_));
                     logger->debug(ZMQ_LOG, "\[WORKER\] get message from broker with %d part", msg->parts());
                     //msg->dump();
@@ -488,6 +488,7 @@ class worker_base
 
     std::condition_variable monitor_cond;
     std::mutex monitor_mutex;
+    M_MUTEX worker_mutex;
 
     std::thread *routine_thread;
     std::thread *monitor_thread;

@@ -216,7 +216,7 @@ class broker_base
                 //  Handle worker activity on backend
                 if (items[0].revents & ZMQ_POLLIN)
                 {
-
+                    //std::lock_guard<M_MUTEX> backendlock(backend_mutex);
                     zmsg msg(backend_socket_);
                     std::string identity((char *)(msg.pop_front()).c_str());
                     logger->debug(ZMQ_LOG, "\[BROKER\] receive message from backend with ID: %s\n", identity.c_str());
@@ -254,6 +254,7 @@ class broker_base
                 }
                 if (items[1].revents & ZMQ_POLLIN)
                 {
+                    //std::lock_guard<M_MUTEX> frontendlock(frontend_mutex);
                     //  Now get next client request, route to next worker
                     zmsg msg(frontend_socket_);
                     std::string identity = std::string(s_worker_dequeue());
@@ -378,4 +379,7 @@ class broker_base
     // for queue
     //  Queue of available workers
     std::vector<worker_t> queue;
+
+    M_MUTEX frontend_mutex;
+    M_MUTEX backend_mutex;
 };

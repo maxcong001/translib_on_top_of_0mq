@@ -87,7 +87,7 @@ int main(void)
 		tmp_client->set_monitor_cb(client_monitor_func);
 		tmp_client->setIPPort("127.0.0.1:5561");
 		tmp_client->run();
-		tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+	//	tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
 	}
 	while (1)
 	{
