@@ -28,6 +28,10 @@ typedef std::function<void(int, int, std::string &)> MONITOR_CB_FUNC_CLIENT;
 // set logger callback
 typedef std::function<void(const char *file, int line, const char *func, Logger::Level lev, const char *msg)> LogHandlerFn;
 
+typedef std::lock_guard<std::recursive_mutex> M_GUARD;
+typedef std::recursive_mutex M_RMUTEX;
+typedef std::mutex M_MUTEX;
+
 typedef struct
 {
     std::string identity; //  Address of worker

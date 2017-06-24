@@ -22,7 +22,7 @@ See [test](test) for more guidance on how to run various test suites (e.g. unit 
 | 2017/06/27  | add heart beat and worker recovery                    | 1.2     |
 
 # Known issue
-### If client send a mess number of messages(as we are async, these message will send immediately), then the client will exit with sig-abort. This is cause by 0MQ, when a larg amount of messages come at the same time, the link list corrupted.
+### If client send a mess number of messages(as we are async, these message will "send" immediately), then the client will exit with sig-abort. This is cause by 0MQ, when a larg amount of messages come at the same time, the link list corrupted.
 Now we had test send message 4,000/s, that is fine. 
 note: please do not write code like below(send to many messages in a while/for loop, we are async, will "send" immediately):
 ```

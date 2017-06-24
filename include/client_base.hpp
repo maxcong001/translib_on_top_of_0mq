@@ -119,6 +119,7 @@ class client_base
 
         try
         {
+            std::lock_guard<M_MUTEX> glock(client_mutex);
             messsag.send(client_socket_);
         }
         catch (std::exception &e)
@@ -353,6 +354,7 @@ class client_base
                 zmq::poll(items, 1, EPOLL_TIMEOUT);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
+                    std::lock_guard<M_MUTEX> glock(client_mutex);
                     zmsg msg(client_socket_);
                     logger->debug(ZMQ_LOG, "\[CLIENT\] rceive message with %d parts\n", msg.parts());
                     std::string tmp_str = msg.get_body();
@@ -401,4 +403,5 @@ class client_base
     bool should_stop;
     bool should_exit_monitor_task;
     MONITOR_CB_FUNC_CLIENT monitor_cb;
+    M_MUTEX client_mutex;
 };

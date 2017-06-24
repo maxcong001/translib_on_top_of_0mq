@@ -105,10 +105,11 @@ int main(void)
 {
 
     LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
+                                                               //LogManager::getLogger(logging_cb)->setLevel(Logger::ALL);
 
-//    logger->error(ZMQ_LOG, "hello world\n");
-/************this is DEALER <->ROUTER MODE ************/
-#if 0
+    //    logger->error(ZMQ_LOG, "hello world\n");
+    /************this is DEALER <->ROUTER MODE ************/
+
     {
         logger->error(ZMQ_LOG, " ************   this is DEALER<->ROUTER MODE************\n");
         client_base ct1;
@@ -134,21 +135,23 @@ int main(void)
         std::string test_str = "this is for test!";
         void *user_data = (void *)28;
         std::cout << "send message : \"" << test_str << "\"  with usr data : " << user_data << std::endl;
-
-        for (int i = 0; i < 10; i++)
+        while (1)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(400));
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
-            ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
-            //ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+            for (int i = 0; i < 100; i++)
+            {
+                ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+                ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+            }
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(4000));
         ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
         ct1.stop();
     }
-#endif
 
+#if 0
     /************   this is DEALER<->(RTOUTER<->DEALER)<->DEALER  mode************/
     {
         logger->error(ZMQ_LOG, " ************   this is DEALER<->(RTOUTER<->RTOUTER)<->DEALER  mode************\n");
@@ -171,19 +174,30 @@ int main(void)
         logger->debug(ZMQ_LOG, "start broker part now\n");
         // 2. broker part
         broker_base bk1;
+        bk1.set_backtend_protocol("ipc://");
+        bk1.set_backtend_IPPort("abcdefg");
         auto broker_fun = std::bind(&broker_base::run, &bk1);
         std::thread broker_t(broker_fun);
         //broker_t.detach();
         logger->debug(ZMQ_LOG, "start worker part now\n");
         // 3. worker part
-
+        // "inproc://abcdefg"
+        // for broker
+        //void set_backtend_protocol(std::string protocol)
+        //set_backtend_IPPort(std::string IPPort)
+        // for worker
+        //    void set_protocol(std::string protocol_)
+        //    void setIPPort(std::string ipport)
         //wk1.setIPPort("127.0.0.1:5560");
         wk1.set_monitor_cb(server_monitor_func);
         // for server, you need to set callback function first
         wk1.set_cb(worker_cb_001);
+
+        wk1.set_protocol("ipc://");
+        wk1.setIPPort("abcdefg");
         wk1.run();
         //std::this_thread::sleep_for(std::chrono::milliseconds(400));
-
+        /*
         wk2.set_monitor_cb(server_monitor_func);
         // for server, you need to set callback function first
         wk2.set_cb(worker_cb_002);
@@ -195,7 +209,7 @@ int main(void)
         wk3.set_cb(worker_cb_003);
         wk3.run();
         //std::this_thread::sleep_for(std::chrono::milliseconds(400));
-
+*/
         for (int i = 0; i < 10; i++)
         {
             logger->debug(ZMQ_LOG, "send message now\n");
@@ -209,7 +223,7 @@ int main(void)
             ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
         }
     }
-
+#endif
 #if 0
     {
         /************  test worker recovery  ************/

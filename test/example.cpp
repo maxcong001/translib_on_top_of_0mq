@@ -20,6 +20,7 @@ void client_cb_001(const char *msg, size_t len, void *usr_data)
 {
 	std::cout << "receive message form server : \"" << (std::string(msg, len)) << "\" with user data : " << usr_data << " message count : " << count++ << std::endl;
 }
+
 /*
 void server_cb_001(const char *data, size_t len, void *ID)
 {
@@ -36,6 +37,7 @@ void server_monitor_func(int event, int value, std::string &address)
 }
 int main(void)
 {
+#if 0
 	client_base ct1;
 	ct1.set_monitor_cb(client_monitor_func);
 	ct1.setIPPort("127.0.0.1:5561");
@@ -56,11 +58,11 @@ int main(void)
 	//ct2.run();
 
 	//st1.run();
-
+#endif
 	std::string test_str = "this is for test!";
 	void *user_data = (void *)28;
 	std::cout << "send message : \"" << test_str << "\"  with usr data : " << user_data << std::endl;
-
+	/*
 	//for (int i = 0; i < 10; i++)
 	while (1)
 	{
@@ -72,6 +74,32 @@ int main(void)
 			ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
 			//ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
 			//ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+		}
+	}
+*/
+	std::vector<client_base *> client_vector;
+	for (int num = 0; num < 20; num++)
+	{
+		client_vector.emplace_back(new client_base());
+	}
+	for (auto tmp_client : client_vector)
+	{
+		tmp_client->set_monitor_cb(client_monitor_func);
+		tmp_client->setIPPort("127.0.0.1:5561");
+		tmp_client->run();
+		tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+	}
+	while (1)
+	{
+		//getchar();
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+		for (int i = 0; i < 10; i++)
+		{
+			for (auto tmp_client : client_vector)
+			{
+				tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+			}
 		}
 	}
 	/*
