@@ -32,7 +32,7 @@ note: please do not write code like below(send to many messages in a while/for l
 		}
 ````
 ### If client send message too fast, sometimes the program will hang at "poll" or "epoll wait". This is cause by 0MQ, that when we send a message, even in the async mode, it will wait for a "response". It hang waiting for "response" even we set the send/receive timeout to 5s. 
-### [please do not send message faster than broker process message for a long time]
+## [please do not send message faster than broker process message for a long time]
 
 # Overview
 
