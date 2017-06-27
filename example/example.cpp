@@ -70,7 +70,7 @@ void logging_cb(const char *file_ptr, int line, const char *func_ptr, Logger::Le
 //std::lock_guard<std::mutex> lock(mtx);
 void client_cb_001(const char *msg, size_t len, void *usr_data)
 {
-    #if 0
+#if 0
     message_count_recv++;
     total_msg += len;
  //   std::cout << std::dec <<"s_clock() is : "<<s_clock()<<" last_time is : " << last_time<< " s_clock() -last_time is : "<< s_clock() -last_time<<std::endl;
@@ -83,10 +83,10 @@ void client_cb_001(const char *msg, size_t len, void *usr_data)
         total_msg = 0;
         message_count_recv = 0;
     }
-    
+
 #endif
     //std::cout << std::dec << "receive message form server : \"" << (std::string(msg, len)) << " \", len is : " << len << " , with user data : " << usr_data << " total message: " << message_count_recv++ << "\r"<<std::flush;
-std::cout << std::dec <<" total message: " << message_count_recv++ << "\r"<<std::flush;
+    std::cout << std::dec << " total message: " << message_count_recv++ << "\r" << std::flush;
 }
 void server_cb_001(const char *data, size_t len, void *ID)
 {
@@ -125,8 +125,8 @@ int main(void)
     LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
                                                                //LogManager::getLogger(logging_cb)->setLevel(Logger::ALL);
 
-    //    logger->error(ZMQ_LOG, "hello world\n");
-    /************this is DEALER <->ROUTER MODE ************/
+//    logger->error(ZMQ_LOG, "hello world\n");
+/************this is DEALER <->ROUTER MODE ************/
 #if 0
     {
         logger->error(ZMQ_LOG, " ************   this is DEALER<->ROUTER MODE************\n");
@@ -276,7 +276,6 @@ int main(void)
             ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
         }
     }
-
 
 #if 0
     {
