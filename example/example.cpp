@@ -9,6 +9,8 @@
 #include <chrono> // std::chrono::seconds
 #include <mutex>
 #include <future>
+#include <atomic>
+#include <stdlib.h>
 
 // this is the callback function of server
 // typedef std::function<void(const char *, size_t, void *)> SERVER_CB_FUNC;
@@ -20,10 +22,13 @@ worker_base wk2;
 worker_base wk3;
 worker_base wk4;
 std::mutex mtx;
-int message_count;
+std::atomic<long> message_count;
 int message_count_recv;
 int64_t last_time;
 int64_t total_msg;
+char tmp_str[100] = {'a', 'b', 'c', 0, 'd', 'e'};
+
+std::string test_str(tmp_str, 20);
 
 size_t time_str(uint32_t secs, uint32_t msec, char *out_ptr, size_t sz)
 {
@@ -85,12 +90,26 @@ void client_cb_001(const char *msg, size_t len, void *usr_data)
     }
 
 #endif
-    //std::cout << std::dec << "receive message form server : \"" << (std::string(msg, len)) << " \", len is : " << len << " , with user data : " << usr_data << " total message: " << message_count_recv++ << "\r"<<std::flush;
-    std::cout << std::dec << " total message: " << message_count_recv++ << "\r" << std::flush;
+    std::string tmps(msg, len);
+
+    std::cout
+        << std::dec << "receive message form server : \"" << tmps << " \", len is : " << len << " , with user data : " << usr_data << " total message: " << message_count_recv++ << std::endl; //"\r" << std::flush;
+
+    std::cout << ((tmps.compare(test_str) == 0) ? "SUCCESS" : "FALSE") << std::endl;
+//std::cout << std::dec << " total message: " << message_count_recv++ << "\r" << std::flush;
+#if 0
+    message_count_recv++;
+    if (!(message_count_recv % 1000))
+    {
+        std::cout << "total message: " << message_count_recv << " len is " << len << "\r";
+    }
+#endif
 }
 void server_cb_001(const char *data, size_t len, void *ID)
 {
-    //std::cout<<std::dec<< "receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+    std::string tmps(data, len);
+    std::cout
+        << std::dec << "receive message form client : " << (tmps.compare(test_str)) << " total message: " << message_count++ << std::endl;
     st1.send(data, len, ID);
 }
 
@@ -136,15 +155,17 @@ int main(void)
         // for server, you need to set callback function first
         st1.set_cb(server_cb_001);
         st1.run();
-
-        std::string test_str = "this is for test!";
+#define MAX_LEN 4000
+        char buffer[MAX_LEN];
+        std::string test_str(buffer, MAX_LEN);
         void *user_data = (void *)28;
 
         std::vector<client_base *> client_vector;
-        for (int num = 0; num < 50; num++)
+        for (int num = 0; num < 20; num++)
         {
             client_vector.emplace_back(new client_base());
         }
+
         for (auto tmp_client : client_vector)
         {
             tmp_client->set_monitor_cb(client_monitor_func);
@@ -157,61 +178,23 @@ int main(void)
             //getchar();
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 4; i++)
             {
+
                 for (auto tmp_client : client_vector)
                 {
                     tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
                 }
             }
         }
-#if 0
-        client_base ct1;
-        ct1.set_monitor_cb(client_monitor_func);
-        ct1.setIPPort("127.0.0.1:5571");
-        //ct1.setIPPortSource("127.0.0.1:5578");
-
-        client_base ct2;
-        ct2.set_monitor_cb(client_monitor_func);
-        ct2.setIPPort("127.0.0.1:5571");
-        //    ct1.setIPPortSource("127.0.0.1:5577");
-
-        st1.setIPPort("127.0.0.1:5571");
-        st1.set_monitor_cb(server_monitor_func);
-        // for server, you need to set callback function first
-        st1.set_cb(server_cb_001);
-
-        ct1.run();
-        ct2.run();
-
-        st1.run();
-
-        std::string test_str = "this is for test!";
-        void *user_data = (void *)28;
-        std::cout<<std::dec<< "send message : \"" << test_str << "\"  with usr data : " << user_data << std::endl;
-        while (1)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            for (int i = 0; i < 100; i++)
-            {
-                ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
-                ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
-            }
-        }
-#endif
-        //std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-        //ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
-        //ct1.stop();
     }
-
 #endif
+
     /************   this is DEALER<->(RTOUTER<->DEALER)<->DEALER  mode************/
     {
         logger->error(ZMQ_LOG, " ************   this is DEALER<->(RTOUTER<->RTOUTER)<->DEALER  mode************\n");
         // test if the API is binary safe
-        char tmp_str[20] = "this is for test!";
-        tmp_str[2] = 0;
-        std::string test_str(tmp_str, 20);
+
         void *user_data = (void *)28;
         // there will be three part
         // 1. client part
@@ -273,6 +256,7 @@ int main(void)
         while (1)
         {
             getchar();
+            std::cout << "send out message " << test_str << std::endl;
             ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
         }
     }

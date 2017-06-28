@@ -85,12 +85,13 @@ class client_base
         tmp_struct.cb = (void *)cb;
         zmsg::ustring tmp_str((unsigned char *)&tmp_struct, sizeof(usrdata_and_cb));
         zmsg::ustring tmp_msg((unsigned char *)(msg), len);
+        tmp_str += tmp_msg;
 
         sand_box.emplace((void *)cb);
 
         zmsg messsag;
         messsag.push_back(tmp_str);
-        messsag.push_back(tmp_msg);
+        //messsag.push_back(tmp_msg);
 
         try
         {
@@ -110,12 +111,13 @@ class client_base
         tmp_struct.cb = (void *)cb;
         zmsg::ustring tmp_str((unsigned char *)&tmp_struct, sizeof(usrdata_and_cb));
         zmsg::ustring tmp_msg((unsigned char *)(msg), len);
+        tmp_str += tmp_msg;
 
         sand_box.emplace((void *)cb);
 
         zmsg messsag;
         messsag.push_back(tmp_str);
-        messsag.push_back(tmp_msg);
+        //messsag.push_back(tmp_msg);
 
         try
         {
@@ -285,7 +287,7 @@ class client_base
             logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_IPV6 option return fail!\n");
             return false;
         }
-
+        /*
         int linger = 0;
         if (zmq_setsockopt(client_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
         {
@@ -293,7 +295,7 @@ class client_base
             ctx_.close();
             logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
             return false;
-        }
+        }*/
         /*
         - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
         - Value is an uint32 in ms (to be compatible with windows and kept the
@@ -355,17 +357,19 @@ class client_base
                 if (items[0].revents & ZMQ_POLLIN)
                 {
                     std::string tmp_str;
-                    std::string tmp_data_and_cb;
+                    //std::string tmp_data_and_cb;
                     {
                         std::lock_guard<M_MUTEX> glock(client_mutex);
                         zmsg msg(client_socket_);
                         logger->debug(ZMQ_LOG, "\[CLIENT\] rceive message with %d parts\n", msg.parts());
                         tmp_str = msg.get_body();
-                        tmp_data_and_cb = msg.get_body();
+                        //tmp_data_and_cb = msg.get_body();
                     }
-                    usrdata_and_cb *usrdata_and_cb_p = (usrdata_and_cb *)(tmp_data_and_cb.c_str());
+                    usrdata_and_cb *usrdata_and_cb_p = (usrdata_and_cb *)(tmp_str.c_str());
 
                     void *user_data = usrdata_and_cb_p->usr_data;
+                    //logger->warn(ZMQ_LOG, "\[CLIENT\] user data is %p\n", user_data);
+
                     if (sand_box.find((void *)(usrdata_and_cb_p->cb)) == sand_box.end())
                     {
                         logger->warn(ZMQ_LOG, "\[CLIENT\] Warning! the message is crrupted or someone is hacking us !!");
@@ -375,8 +379,8 @@ class client_base
 
                     if (cb_)
                     {
-                        cb_(tmp_str.c_str(), tmp_str.size(), user_data);
-                    }
+                        cb_((char *)((usrdata_and_cb *)(tmp_str.c_str()) + 1), tmp_str.size() - sizeof(usrdata_and_cb), user_data);
+                                        }
                     else
                     {
                         logger->error(ZMQ_LOG, "\[CLIENT\] no callback function is set!\n");

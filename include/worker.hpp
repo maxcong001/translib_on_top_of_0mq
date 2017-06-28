@@ -358,9 +358,10 @@ class worker_base
                     //msg->dump();
                     // now we get the message .
                     // this is the normal message
-                    if (msg->parts() == 3)
+                    if (msg->parts() == 2)
                     {
 #if 0
+
                         ///// this is for test, simulate various problems after a fwe cycles
                         static int cycles;
                         cycles++;

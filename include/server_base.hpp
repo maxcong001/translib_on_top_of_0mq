@@ -248,7 +248,7 @@ class server_base
 
             return false;
         }
-
+#if 0
         int linger = 0;
         if (zmq_setsockopt(server_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
         {
@@ -258,6 +258,7 @@ class server_base
 
             return false;
         }
+#endif
         try
         {
             if (IP_and_port.empty())
