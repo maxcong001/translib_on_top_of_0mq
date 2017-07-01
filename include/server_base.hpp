@@ -109,10 +109,12 @@ class server_base
             zmsg::ustring tmp_ustr((unsigned char *)msg, len);
             // to do add the send code
             (iter->second)->push_back(tmp_ustr);
-            (iter->second)->send(server_socket_);
-            // make sure delete the memory of the message
-            //(iter->second)->clear();
-            (iter->second).reset();
+            {
+                std::lock_guard<M_MUTEX> glock(server_mutex);
+                server_q.emplace(iter->second);
+            }
+            //(iter->second)->send(server_socket_);
+            //(iter->second).reset();
             Id2MsgMap.erase(iter);
         }
         else
@@ -248,7 +250,7 @@ class server_base
 
             return false;
         }
-
+#if 0
         int linger = 0;
         if (zmq_setsockopt(server_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
         {
@@ -258,6 +260,7 @@ class server_base
 
             return false;
         }
+#endif
         try
         {
             if (IP_and_port.empty())
@@ -288,7 +291,7 @@ class server_base
             try
             {
                 // by default we wait for 500ms then so something. like hreatbeat
-                zmq::poll(items, 1, -1);
+                zmq::poll(items, 1, EPOLL_TIMEOUT);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
                     // this is for test, delete it later
@@ -317,10 +320,53 @@ class server_base
                     {
                         logger->warn(ZMQ_LOG, "\[SERVER\]  no invalid callback function, please make sure you had set it\n");
                     }
+
+                    if (server_q.size())
+                    {
+                        try
+                        {
+                            std::lock_guard<M_MUTEX> glock(server_mutex);
+                            logger->debug(ZMQ_LOG, "\[SERVER\] there is %d message, now send message\n", server_q.size());
+                            // check size again under the lock
+                            while (server_q.size())
+                            {
+                                (server_q.front())->send(server_socket_);
+                                // make sure the the reference count is 0
+                                (server_q.front()).reset();
+                                server_q.pop();
+                            }
+                        }
+                        catch (std::exception &e)
+                        {
+                            logger->error(ZMQ_LOG, "\[SERVER\] send message fail!\n");
+                            continue;
+                        }
+                    }
                 }
+                // poll time out, now send message if there is one
                 else
                 {
-                    logger->error(ZMQ_LOG, "\[SERVER\] epoll error !\n");
+                    if (server_q.size())
+                    {
+                        try
+                        {
+                            std::lock_guard<M_MUTEX> glock(server_mutex);
+                            logger->debug(ZMQ_LOG, "\[SERVER\] poll timeout, and there is %d message, now send message\n", server_q.size());
+                            // check size again under the lock
+                            while (server_q.size())
+                            {
+                                (server_q.front())->send(server_socket_);
+                                // make sure the the reference count is 0
+                                (server_q.front()).reset();
+                                server_q.pop();
+                            }
+                        }
+                        catch (std::exception &e)
+                        {
+                            logger->error(ZMQ_LOG, "\[SERVER\] send message fail!\n");
+                            continue;
+                        }
+                    }
                 }
             }
             catch (std::exception &e)
@@ -350,4 +396,7 @@ class server_base
     std::thread *monitor_thread;
     bool should_exit_monitor_task;
     bool should_exit_routine_task;
+
+    std::mutex server_mutex;
+    std::queue<zmsg_ptr> server_q;
 };

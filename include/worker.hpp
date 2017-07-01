@@ -358,31 +358,9 @@ class worker_base
                     //msg->dump();
                     // now we get the message .
                     // this is the normal message
-                    if (msg->parts() == 3)
+                    if (msg->parts() == 2)
                     {
-#if 0
-                        ///// this is for test, simulate various problems after a fwe cycles
-                        static int cycles;
-                        cycles++;
-/*
-                        if (cycles > 3 && within(5) == 0)
-                        {
-                            logger->debug(ZMQ_LOG, "\[WORKER\] Simulate a crash, ID : %s, cycle is %d\n", identity_.c_str(), cycles);
-                            msg->clear();
-                            continue;
-                        }
-                        else
-                        {*/
-#if 0
-                        if (cycles > 3 && within(5) == 0)
-                        {
-                            logger->debug(ZMQ_LOG, "\[WORKER\]  simulating CPU overload, ID : %s, cycle is %d\n", identity_.c_str(), cycles);
-                            sleep(5);
-                        }
-#endif
-                        // }
-                        //liveness = 1;
-#endif
+
                         std::string data = msg->get_body();
                         if (data.empty())
                         {

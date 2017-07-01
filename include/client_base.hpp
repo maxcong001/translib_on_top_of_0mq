@@ -5,6 +5,7 @@
 #include <functional>
 #include <string>
 #include <unordered_set>
+#include <queue>
 #include <zmq.hpp>
 #include "zhelpers.hpp"
 #include "zmsg.hpp"
@@ -85,22 +86,20 @@ class client_base
         tmp_struct.cb = (void *)cb;
         zmsg::ustring tmp_str((unsigned char *)&tmp_struct, sizeof(usrdata_and_cb));
         zmsg::ustring tmp_msg((unsigned char *)(msg), len);
+        tmp_str += tmp_msg;
 
         sand_box.emplace((void *)cb);
 
         zmsg messsag;
         messsag.push_back(tmp_str);
-        messsag.push_back(tmp_msg);
+        // send message to the queue
+        {
+            std::lock_guard<M_MUTEX> glock(client_mutex);
+            queue_s.emplace(messsag);
+        }
 
-        try
-        {
-            messsag.send(client_socket_);
-        }
-        catch (std::exception &e)
-        {
-            // log here, send fail
-            return -1;
-        }
+        // note: return len here
+        return len;
     }
 
     size_t send(void *usr_data, USR_CB_FUNC cb, char *msg, size_t len)
@@ -110,23 +109,18 @@ class client_base
         tmp_struct.cb = (void *)cb;
         zmsg::ustring tmp_str((unsigned char *)&tmp_struct, sizeof(usrdata_and_cb));
         zmsg::ustring tmp_msg((unsigned char *)(msg), len);
+        tmp_str += tmp_msg;
 
         sand_box.emplace((void *)cb);
 
         zmsg messsag;
         messsag.push_back(tmp_str);
-        messsag.push_back(tmp_msg);
-
-        try
+        // send message to the queue
         {
             std::lock_guard<M_MUTEX> glock(client_mutex);
-            messsag.send(client_socket_);
+            queue_s.emplace(messsag);
         }
-        catch (std::exception &e)
-        {
-            logger->error(ZMQ_LOG, "\[CLIENT\] send message fail!\n");
-            return -1;
-        }
+
         // note: return len here
         return len;
     }
@@ -170,6 +164,11 @@ class client_base
         if (routine_thread)
         {
             routine_thread->join();
+        }
+        int linger = 0;
+        if (zmq_setsockopt(client_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
+        {
+            logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
         }
 
         client_socket_.close();
@@ -264,14 +263,11 @@ class client_base
         int rc = zmq_socket_monitor(client_socket_, monitor_path.c_str(), ZMQ_EVENT_ALL);
         return ((rc == 0) ? true : false);
     }
-    size_t
-    send(const char *msg, size_t len)
+
+    bool send_to_queue(const char *msg, size_t len)
     {
-        return client_socket_.send(msg, len);
-    }
-    size_t send(char *msg, size_t len)
-    {
-        return client_socket_.send(msg, len);
+
+        return true;
     }
 
     bool start()
@@ -286,14 +282,6 @@ class client_base
             return false;
         }
 
-        int linger = 0;
-        if (zmq_setsockopt(client_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
-        {
-            client_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
-            return false;
-        }
         /*
         - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
         - Value is an uint32 in ms (to be compatible with windows and kept the
@@ -350,22 +338,21 @@ class client_base
             }
             try
             {
-                // to do  now poll forever, we can set a timeout and then so something like heartbeat
                 zmq::poll(items, 1, EPOLL_TIMEOUT);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
                     std::string tmp_str;
-                    std::string tmp_data_and_cb;
+                    //std::string tmp_data_and_cb;
                     {
-                        std::lock_guard<M_MUTEX> glock(client_mutex);
+
                         zmsg msg(client_socket_);
                         logger->debug(ZMQ_LOG, "\[CLIENT\] rceive message with %d parts\n", msg.parts());
                         tmp_str = msg.get_body();
-                        tmp_data_and_cb = msg.get_body();
                     }
-                    usrdata_and_cb *usrdata_and_cb_p = (usrdata_and_cb *)(tmp_data_and_cb.c_str());
+                    usrdata_and_cb *usrdata_and_cb_p = (usrdata_and_cb *)(tmp_str.c_str());
 
                     void *user_data = usrdata_and_cb_p->usr_data;
+
                     if (sand_box.find((void *)(usrdata_and_cb_p->cb)) == sand_box.end())
                     {
                         logger->warn(ZMQ_LOG, "\[CLIENT\] Warning! the message is crrupted or someone is hacking us !!");
@@ -375,11 +362,60 @@ class client_base
 
                     if (cb_)
                     {
-                        cb_(tmp_str.c_str(), tmp_str.size(), user_data);
+                        cb_((char *)((usrdata_and_cb *)(tmp_str.c_str()) + 1), tmp_str.size() - sizeof(usrdata_and_cb), user_data);
                     }
                     else
                     {
                         logger->error(ZMQ_LOG, "\[CLIENT\] no callback function is set!\n");
+                    }
+                    // why we check if there is message and send it?
+                    // because if the message keep coming. there will be no change to send message/
+                    // why two  queue_s.size()
+                    // avoid add lock. only queue_s.size() is not 0, then we add lock.
+                    // to do: how many message to send? or send all the message(we are async, that is fine)
+
+                    if (queue_s.size())
+                    {
+
+                        try
+                        {
+                            std::lock_guard<M_MUTEX> glock(client_mutex);
+                            logger->debug(ZMQ_LOG, "\[CLIENT\] there is %d message to send\n", queue_s.size());
+                            // check size again under the lock
+                            while (queue_s.size())
+                            {
+                                (queue_s.front()).send(client_socket_);
+                                queue_s.pop();
+                            }
+                        }
+                        catch (std::exception &e)
+                        {
+                            logger->error(ZMQ_LOG, "\[CLIENT\] send message fail!\n");
+                            continue;
+                        }
+                    }
+                }
+                else
+                // poll timeout, now it is the time we send message.
+                {
+                    if (queue_s.size())
+                    {
+                        try
+                        {
+                            std::lock_guard<M_MUTEX> glock(client_mutex);
+                            logger->debug(ZMQ_LOG, "\[CLIENT\] poll timeout, and there is %d message, now send message\n", queue_s.size());
+                            // check size again under the lock
+                            while (queue_s.size())
+                            {
+                                (queue_s.front()).send(client_socket_);
+                                queue_s.pop();
+                            }
+                        }
+                        catch (std::exception &e)
+                        {
+                            logger->error(ZMQ_LOG, "\[CLIENT\] send message fail!\n");
+                            continue;
+                        }
                     }
                 }
             }
@@ -408,4 +444,6 @@ class client_base
     bool should_exit_monitor_task;
     MONITOR_CB_FUNC_CLIENT monitor_cb;
     M_MUTEX client_mutex;
+    // queue the message to send
+    std::queue<zmsg> queue_s;
 };
