@@ -110,7 +110,6 @@ class client_base
         zmsg::ustring tmp_str((unsigned char *)&tmp_struct, sizeof(usrdata_and_cb));
         zmsg::ustring tmp_msg((unsigned char *)(msg), len);
         tmp_str += tmp_msg;
-
         sand_box.emplace((void *)cb);
 
         //zmsg messsag;
@@ -132,7 +131,6 @@ class client_base
         //routine_thread.detach();
         auto monitor_fun = std::bind(&client_base::monitor_task, this);
         monitor_thread = new std::thread(monitor_fun);
-
 
         bool ret = monitor_this_socket();
         if (ret)
