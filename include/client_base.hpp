@@ -110,6 +110,7 @@ class client_base
         zmsg::ustring tmp_str((unsigned char *)&tmp_struct, sizeof(usrdata_and_cb));
         zmsg::ustring tmp_msg((unsigned char *)(msg), len);
         tmp_str += tmp_msg;
+
         sand_box.emplace((void *)cb);
 
         //zmsg messsag;
