@@ -90,8 +90,9 @@ class client_base
 
         sand_box.emplace((void *)cb);
 
-        zmsg messsag;
-        messsag.push_back(tmp_str);
+        //zmsg messsag;
+        zmsg_ptr messsag(new zmsg(tmp_str.c_str()));
+        messsag->push_back(tmp_str);
         // send message to the queue
         {
             std::lock_guard<M_MUTEX> glock(client_mutex);
