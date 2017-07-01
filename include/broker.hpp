@@ -217,14 +217,16 @@ class broker_base
                 if (items[0].revents & ZMQ_POLLIN)
                 {
                     //std::lock_guard<M_MUTEX> backendlock(backend_mutex);
-                    zmsg msg(backend_socket_);
-                    std::string identity((char *)(msg.pop_front()).c_str());
+
+                    zmsg_ptr msg(new zmsg(backend_socket_));
+
+                    std::string identity((char *)(msg->pop_front()).c_str());
                     logger->debug(ZMQ_LOG, "\[BROKER\] receive message from backend with ID: %s\n", identity.c_str());
 
                     //  Return reply to client if it's not a control message
-                    if (msg.parts() == 1)
+                    if (msg->parts() == 1)
                     {
-                        if (strcmp(msg.address(), "READY") == 0)
+                        if (strcmp(msg->address(), "READY") == 0)
                         {
                             logger->debug(ZMQ_LOG, "\[BROKER\] receive READY message from backend, ID is : %s\n", identity.c_str());
                             s_worker_delete(identity);
@@ -232,7 +234,7 @@ class broker_base
                         }
                         else
                         {
-                            if (strcmp(msg.address(), "HEARTBEAT") == 0)
+                            if (strcmp(msg->address(), "HEARTBEAT") == 0)
                             {
                                 //s_worker_delete(identity);
                                 //s_worker_append(identity);
@@ -242,25 +244,123 @@ class broker_base
                             else
                             {
                                 logger->warn(ZMQ_LOG, "\[BROKER\] invalid message from %s\n", identity.c_str());
-                                msg.dump();
+                                msg->dump();
                             }
                         }
                     }
                     else
                     {
-                        msg.send(frontend_socket_);
+                        {
+                            std::lock_guard<M_MUTEX> glock(broker_mutex);
+                            front_end_q.emplace(msg);
+                        }
                         s_worker_append(identity);
+                    }
+
+                    if (back_end_q.size())
+                    {
+
+                        try
+                        {
+                            std::lock_guard<M_MUTEX> glock(broker_mutex);
+                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", back_end_q.size());
+                            // check size again under the lock
+                            while (back_end_q.size())
+                            {
+                                (back_end_q.front())->send(backend_socket_);
+                                (back_end_q.front()).clear();
+                                back_end_q.pop();
+                            }
+                        }
+                        catch (std::exception &e)
+                        {
+                            logger->error(ZMQ_LOG, "\[BROKER\] send message fail!\n");
+                            continue;
+                        }
                     }
                 }
                 if (items[1].revents & ZMQ_POLLIN)
                 {
                     //std::lock_guard<M_MUTEX> frontendlock(frontend_mutex);
                     //  Now get next client request, route to next worker
-                    zmsg msg(frontend_socket_);
+                    zmsg_ptr msg(new zmsg(frontend_socket_));
+
                     std::string identity = std::string(s_worker_dequeue());
                     logger->debug(ZMQ_LOG, "\[BROKER\] receive message from frontend, send message to worker with ID : %s", identity.c_str());
-                    msg.push_front((char *)identity.c_str());
-                    msg.send(backend_socket_);
+                    msg->push_front((char *)identity.c_str());
+                    {
+                        std::lock_guard<M_MUTEX> glock(broker_mutex);
+                        back_end_q.emplace(msg);
+                    }
+
+                    if (front_end_q.size())
+                    {
+
+                        try
+                        {
+                            std::lock_guard<M_MUTEX> glock(broker_mutex);
+                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", front_end_q.size());
+                            // check size again under the lock
+                            while (front_end_q.size())
+                            {
+                                (front_end_q.front())->send(frontend_socket_);
+                                (front_end_q.front()).clear();
+                                front_end_q.pop();
+                            }
+                        }
+                        catch (std::exception &e)
+                        {
+                            logger->error(ZMQ_LOG, "\[BROKER\] send message fail!\n");
+                            continue;
+                        }
+                    }
+                }
+                
+                // epoll timeout
+                {
+
+                    if (front_end_q.size())
+                    {
+
+                        try
+                        {
+                            std::lock_guard<M_MUTEX> glock(broker_mutex);
+                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", front_end_q.size());
+                            // check size again under the lock
+                            while (front_end_q.size())
+                            {
+                                (front_end_q.front())->send(frontend_socket_);
+                                (front_end_q.front()).clear();
+                                front_end_q.pop();
+                            }
+                        }
+                        catch (std::exception &e)
+                        {
+                            logger->error(ZMQ_LOG, "\[BROKER\] send message fail!\n");
+                            continue;
+                        }
+                    }
+                    if (back_end_q.size())
+                    {
+
+                        try
+                        {
+                            std::lock_guard<M_MUTEX> glock(broker_mutex);
+                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", back_end_q.size());
+                            // check size again under the lock
+                            while (back_end_q.size())
+                            {
+                                (back_end_q.front())->send(backend_socket_);
+                                (back_end_q.front()).clear();
+                                back_end_q.pop();
+                            }
+                        }
+                        catch (std::exception &e)
+                        {
+                            logger->error(ZMQ_LOG, "\[BROKER\] send message fail!\n");
+                            continue;
+                        }
+                    }
                 }
 
                 //  Send heartbeats to idle workers if it's time
@@ -271,9 +371,12 @@ class broker_base
                     for (std::vector<worker_t>::iterator it = queue.begin(); it < queue.end(); it++)
                     {
                         logger->debug(ZMQ_LOG, "\[BROKER\] send heart beat to ID: %s\n", it->identity.c_str());
-                        zmsg msg("HEARTBEAT");
-                        msg.wrap(it->identity.c_str(), NULL);
-                        msg.send(backend_socket_);
+                        zmsg_ptr msg(new zmsg("HEARTBEAT"));
+                        msg->wrap(it->identity.c_str(), NULL);
+                        {
+                            std::lock_guard<M_MUTEX> glock(broker_mutex);
+                            back_end_q.emplace(msg);
+                        }
                     }
                     heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
                 }
@@ -380,6 +483,10 @@ class broker_base
     //  Queue of available workers
     std::vector<worker_t> queue;
 
-    M_MUTEX frontend_mutex;
-    M_MUTEX backend_mutex;
+    //M_MUTEX frontend_mutex;
+    //M_MUTEX backend_mutex;
+    M_MUTEX broker_mutex;
+
+    std::queue<zmsg_ptr> front_end_q;
+    std::queue<zmsg_ptr> back_end_q;
 };

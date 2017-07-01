@@ -107,14 +107,11 @@ class server_base
         if (iter != Id2MsgMap.end())
         {
             zmsg::ustring tmp_ustr((unsigned char *)msg, len);
-            // to do add the send code
             (iter->second)->push_back(tmp_ustr);
             {
                 std::lock_guard<M_MUTEX> glock(server_mutex);
                 server_q.emplace(iter->second);
             }
-            //(iter->second)->send(server_socket_);
-            //(iter->second).reset();
             Id2MsgMap.erase(iter);
         }
         else

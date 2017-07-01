@@ -109,7 +109,7 @@ class worker_base
     {
         return IP_and_port_source;
     }
-    void set_cb(SERVER_CB_FUNC cb)
+    void set_cb(WORKER_CB_FUNC cb)
     {
         if (cb)
         {
@@ -127,12 +127,11 @@ class worker_base
         if (iter != Id2MsgMap.end())
         {
             zmsg::ustring tmp_ustr((unsigned char *)msg, len);
-            // to do add the send code
             (iter->second)->push_back(tmp_ustr);
-            (iter->second)->send(worker_socket_);
-            // make sure delete the memory of the message
-            //(iter->second)->clear();
-            (iter->second).reset();
+            {
+                std::lock_guard<M_MUTEX> glock(worker_mutex);
+                worker_q.emplace(iter->second);
+            }
             Id2MsgMap.erase(iter);
         }
         else
@@ -182,8 +181,8 @@ class worker_base
     bool monitor_task()
     {
 
-        void *server_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
-        if (!server_mon)
+        void *WORKER_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
+        if (!WORKER_mon)
         {
             logger->error(ZMQ_LOG, "\[WORKER\] 0MQ get socket fail\n");
             return false;
@@ -192,7 +191,7 @@ class worker_base
         {
 
             logger->debug(ZMQ_LOG, "\[WORKER\] monitor path %s\n", monitor_path.c_str());
-            int rc = zmq_connect(server_mon, monitor_path.c_str());
+            int rc = zmq_connect(WORKER_mon, monitor_path.c_str());
 
             //rc should be 0 if success
             if (rc)
@@ -216,14 +215,14 @@ class worker_base
             }
             std::string address;
             int value;
-            int event = get_monitor_event(server_mon, &value, address);
+            int event = get_monitor_event(WORKER_mon, &value, address);
             if (event == -1)
             {
                 logger->warn(ZMQ_LOG, "\[WORKER\] get monitor event fail\n");
                 //return false;
             }
 
-            //std::cout << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
+            //std::cout << "receive event form WORKER monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
             if (monitor_cb)
             {
                 monitor_cb(event, value, address);
@@ -397,6 +396,28 @@ class worker_base
                         }
                     }
                     interval = INTERVAL_INIT;
+
+                    if (worker_q.size())
+                    {
+                        try
+                        {
+                            std::lock_guard<M_MUTEX> glock(worker_mutex);
+                            logger->debug(ZMQ_LOG, "\[WORKER\] there is %d message, now send message\n", worker_q.size());
+                            // check size again under the lock
+                            while (worker_q.size())
+                            {
+                                (worker_q.front())->send(worker_socket_);
+                                // make sure the the reference count is 0
+                                (worker_q.front()).reset();
+                                worker_q.pop();
+                            }
+                        }
+                        catch (std::exception &e)
+                        {
+                            logger->error(ZMQ_LOG, "\[WORKER\] send message fail!\n");
+                            continue;
+                        }
+                    }
                 }
                 // epoll time out
                 else if (--liveness == 0)
@@ -442,6 +463,28 @@ class worker_base
                     logger->debug(ZMQ_LOG, "\[WORKER\]  (%s) worker heartbeat\n", identity_.c_str());
                     s_send(worker_socket_, "HEARTBEAT");
                 }
+
+                if (worker_q.size())
+                {
+                    try
+                    {
+                        std::lock_guard<M_MUTEX> glock(worker_mutex);
+                        logger->debug(ZMQ_LOG, "\[WORKER\] there is %d message, now send message\n", worker_q.size());
+                        // check size again under the lock
+                        while (worker_q.size())
+                        {
+                            (worker_q.front())->send(worker_socket_);
+                            // make sure the the reference count is 0
+                            (worker_q.front()).reset();
+                            worker_q.pop();
+                        }
+                    }
+                    catch (std::exception &e)
+                    {
+                        logger->error(ZMQ_LOG, "\[WORKER\] send message fail!\n");
+                        continue;
+                    }
+                }
             }
             catch (std::exception &e)
             {
@@ -453,7 +496,7 @@ class worker_base
   private:
     std::string identity_;
     std::string monitor_path;
-    SERVER_CB_FUNC *cb_;
+    WORKER_CB_FUNC *cb_;
     MONITOR_CB_FUNC *monitor_cb;
     std::string IP_and_port_dest;
     std::string protocol;
@@ -472,4 +515,5 @@ class worker_base
     std::thread *monitor_thread;
     bool should_exit_monitor_task;
     bool should_exit_routine_task;
+    std::queue<zmsg_ptr> worker_q;
 };

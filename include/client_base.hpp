@@ -449,5 +449,5 @@ class client_base
     MONITOR_CB_FUNC_CLIENT monitor_cb;
     M_MUTEX client_mutex;
     // queue the message to send
-    std::queue<zmsg> queue_s;
+    std::queue<zmsg_ptr> queue_s;
 };
