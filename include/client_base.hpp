@@ -133,6 +133,7 @@ class client_base
         auto monitor_fun = std::bind(&client_base::monitor_task, this);
         monitor_thread = new std::thread(monitor_fun);
 
+
         bool ret = monitor_this_socket();
         if (ret)
         {
