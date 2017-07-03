@@ -34,10 +34,11 @@ class client_base
 
         cb_ = NULL;
         routine_thread = NULL;
+        monitor_thread = NULL;
         should_stop = false;
+        should_exit_monitor_task = false;
         protocol = "tcp://";
         IP_and_port_dest = "127.0.0.1:5561";
-        should_stop = false;
     }
     client_base(std::string IPPort) : ctx_(1),
                                       client_socket_(ctx_, ZMQ_DEALER)
@@ -54,9 +55,11 @@ class client_base
         }
         cb_ = NULL;
         routine_thread = NULL;
+        monitor_thread = NULL;
         protocol = "tcp://";
         IP_and_port_dest = IPPort;
         should_stop = false;
+        should_exit_monitor_task = false;
 
         run();
     }
@@ -167,6 +170,13 @@ class client_base
         {
             routine_thread->join();
         }
+        should_exit_monitor_task = true;
+
+        if (monitor_thread)
+        {
+            monitor_thread->join();
+        }
+
         int linger = 0;
         if (zmq_setsockopt(client_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
         {

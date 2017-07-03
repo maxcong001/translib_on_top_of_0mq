@@ -281,7 +281,6 @@ class broker_base
                 }
                 if (items[1].revents & ZMQ_POLLIN)
                 {
-                    //std::lock_guard<M_MUTEX> frontendlock(frontend_mutex);
                     //  Now get next client request, route to next worker
                     zmsg_ptr msg(new zmsg(frontend_socket_));
 
@@ -295,7 +294,6 @@ class broker_base
 
                     if (front_end_q.size())
                     {
-
                         try
                         {
                             std::lock_guard<M_MUTEX> glock(broker_mutex);
@@ -318,10 +316,8 @@ class broker_base
                 
                 // epoll timeout
                 {
-
                     if (front_end_q.size())
                     {
-
                         try
                         {
                             std::lock_guard<M_MUTEX> glock(broker_mutex);
@@ -342,7 +338,6 @@ class broker_base
                     }
                     if (back_end_q.size())
                     {
-
                         try
                         {
                             std::lock_guard<M_MUTEX> glock(broker_mutex);

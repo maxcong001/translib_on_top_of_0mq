@@ -102,10 +102,7 @@ int main(void)
 			}
 		}
 	}
-	/*
-	std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-	ct2.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
-	ct1.stop();*/
+
 
 	getchar();
 	return 0;

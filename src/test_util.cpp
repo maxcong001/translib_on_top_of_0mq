@@ -64,3 +64,8 @@ void server_monitor_func(int event, int value, std::string &address)
 {
     std::cout << std::dec << "receive event form server monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
 }
+void worker_cb_001(const char *data, size_t len, void *ID)
+{
+    std::cout << std::dec << "receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+    wk1.send(data, len, ID);
+}
