@@ -1,6 +1,8 @@
 
 #include "client_base.hpp"
 #include "server_base.hpp"
+#include "broker.hpp"
+#include "worker.hpp"
 #include "util.hpp"
 #include <string>
 #include <thread> // std::this_thread::sleep_for
@@ -20,7 +22,7 @@ int main(void)
     LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL); //WARN); //ALL);
 
     dealer_router_example();
-    dealer_router_router_dealer_example();
+    //dealer_router_router_dealer_example();
 
     return 0;
 }
@@ -76,6 +78,19 @@ void dealer_router_router_dealer_example()
         wk1.set_protocol("ipc://");
         wk1.setIPPort("abcdefg");
         wk1.run();
+
+        /************send message ************/
+        for (int time = 0; time < 1; time++)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            for (int i = 0; i < 1; i++)
+            {
+                for (auto tmp_client : client_vector)
+                {
+                    tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+                }
+            }
+        }
 
         /************clean up ************/
         broker_t.join();

@@ -22,9 +22,11 @@ typedef std::shared_ptr<zmsg> zmsg_ptr;
 typedef void USR_CB_FUNC(const char *, size_t, void *);
 typedef void SERVER_CB_FUNC(const char *, size_t, void *);
 typedef void MONITOR_CB_FUNC(int, int, std::string &);
+typedef void WORKER_CB_FUNC(const char *, size_t, void *);
 
 //typedef void* MONITOR_CB_FUNC_CLIENT(int, int, std::string &);
-typedef std::function<void(int, int, std::string &)> MONITOR_CB_FUNC_CLIENT;
+typedef std::function<void(int, int, std::string &)>
+    MONITOR_CB_FUNC_CLIENT;
 // set logger callback
 typedef std::function<void(const char *file, int line, const char *func, Logger::Level lev, const char *msg)> LogHandlerFn;
 

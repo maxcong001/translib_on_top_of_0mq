@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "client_base.hpp"
 #include "server_base.hpp"
+#include "worker.hpp"
 
 std::atomic<long> message_count;
 std::atomic<long> message_count_recv;

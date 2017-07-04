@@ -268,7 +268,7 @@ class broker_base
                             while (back_end_q.size())
                             {
                                 (back_end_q.front())->send(backend_socket_);
-                                (back_end_q.front()).clear();
+                                (back_end_q.front()).reset();
                                 back_end_q.pop();
                             }
                         }
@@ -282,7 +282,11 @@ class broker_base
                 if (items[1].revents & ZMQ_POLLIN)
                 {
                     //  Now get next client request, route to next worker
+
                     zmsg_ptr msg(new zmsg(frontend_socket_));
+                    // for debug
+                    logger->debug(ZMQ_LOG, "\[BROKER\] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                    msg->dump();
 
                     std::string identity = std::string(s_worker_dequeue());
                     logger->debug(ZMQ_LOG, "\[BROKER\] receive message from frontend, send message to worker with ID : %s", identity.c_str());
@@ -302,7 +306,7 @@ class broker_base
                             while (front_end_q.size())
                             {
                                 (front_end_q.front())->send(frontend_socket_);
-                                (front_end_q.front()).clear();
+                                (front_end_q.front()).reset();
                                 front_end_q.pop();
                             }
                         }
@@ -313,7 +317,7 @@ class broker_base
                         }
                     }
                 }
-                
+
                 // epoll timeout
                 {
                     if (front_end_q.size())
@@ -326,7 +330,7 @@ class broker_base
                             while (front_end_q.size())
                             {
                                 (front_end_q.front())->send(frontend_socket_);
-                                (front_end_q.front()).clear();
+                                (front_end_q.front()).reset();
                                 front_end_q.pop();
                             }
                         }
@@ -346,7 +350,7 @@ class broker_base
                             while (back_end_q.size())
                             {
                                 (back_end_q.front())->send(backend_socket_);
-                                (back_end_q.front()).clear();
+                                (back_end_q.front()).reset();
                                 back_end_q.pop();
                             }
                         }

@@ -94,7 +94,8 @@ class client_base
         sand_box.emplace((void *)cb);
 
         //zmsg messsag;
-        zmsg_ptr messsag(new zmsg(tmp_str.c_str()));
+
+        zmsg_ptr messsag(new zmsg((char *)tmp_str.c_str()));
         messsag->push_back(tmp_str);
         // send message to the queue
         {
@@ -118,7 +119,7 @@ class client_base
         sand_box.emplace((void *)cb);
 
         //zmsg messsag;
-        zmsg_ptr messsag(new zmsg(tmp_str.c_str()));
+        zmsg_ptr messsag(new zmsg((char *)tmp_str.c_str()));
         messsag->push_back(tmp_str);
         // send message to the queue
         {
@@ -388,7 +389,6 @@ class client_base
 
                     if (queue_s.size())
                     {
-
                         try
                         {
                             std::lock_guard<M_MUTEX> glock(client_mutex);
@@ -397,7 +397,7 @@ class client_base
                             while (queue_s.size())
                             {
                                 (queue_s.front())->send(client_socket_);
-                                (queue_s.front()).clear();
+                                (queue_s.front()).reset();
                                 queue_s.pop();
                             }
                         }
@@ -421,7 +421,7 @@ class client_base
                             while (queue_s.size())
                             {
                                 (queue_s.front())->send(client_socket_);
-                                (queue_s.front()).clear();
+                                (queue_s.front()).reset();
                                 queue_s.pop();
                             }
                         }
