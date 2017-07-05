@@ -22,7 +22,6 @@ class worker_base
           worker_socket_(ctx_, ZMQ_DEALER), uniqueID_atomic(1)
     {
         protocol = "tcp://";
-
         IP_and_port_dest = "127.0.0.1:5560";
         monitor_cb = NULL;
         routine_thread = NULL;
@@ -44,16 +43,6 @@ class worker_base
 
     ~worker_base()
     {
-#if 0
-        if (worker_socket_)
-        {
-            delete worker_socket_;
-        }
-        if (ctx_)
-        {
-            delete ctx_;
-        }
-#endif
         should_exit_monitor_task = true;
         should_exit_routine_task = true;
         if (routine_thread)
@@ -64,6 +53,15 @@ class worker_base
         {
             monitor_thread->join();
         }
+
+        int linger = 0;
+        if (zmq_setsockopt(worker_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
+        {
+            logger->error(ZMQ_LOG, "\[WORKER\] set ZMQ_LINGER of frontend_socket_ return fail\n");
+        }
+
+        worker_socket_.close();
+        ctx_.close();
     }
 
     bool run()
@@ -156,31 +154,9 @@ class worker_base
     void *getUniqueID() { return (void *)(uniqueID_atomic++); };
 
   private:
-    void epoll_task()
-    {
-#if 0
-        std::unique_lock<std::mutex> monitor_lock(monitor_mutex);
-        // to do, receive signal then do other thing.
-        // if signal timeout, that means routine thread is abnormal. Or exit. start again.
-        while (1)
-        {
-            {
-                //monitor_cond.wait(monitor_lock);
-                if (monitor_cond.wait_for(dnsLock, std::chrono::milliseconds(EPOLL_TIMEOUT + 5000)) == std::cv_status::timeout)
-                {
-                    // timeout waitting for signal. there must be something wrong with epoll
-                    auto routine_fun = std::bind(&worker_base::start, this);
-                    std::thread routine_thread(routine_fun);
-                    routine_thread.detach();
-                }
-            }
-        }
-#endif
-    }
 
     bool monitor_task()
     {
-
         void *WORKER_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
         if (!WORKER_mon)
         {
@@ -189,10 +165,8 @@ class worker_base
         }
         try
         {
-
             logger->debug(ZMQ_LOG, "\[WORKER\] monitor path %s\n", monitor_path.c_str());
             int rc = zmq_connect(WORKER_mon, monitor_path.c_str());
-
             //rc should be 0 if success
             if (rc)
             {
@@ -221,8 +195,6 @@ class worker_base
                 logger->warn(ZMQ_LOG, "\[WORKER\] get monitor event fail\n");
                 //return false;
             }
-
-            //std::cout << "receive event form WORKER monitor task, the event is " << event << ". Value is : " << value << ". string is : " << address << std::endl;
             if (monitor_cb)
             {
                 monitor_cb(event, value, address);
@@ -254,18 +226,9 @@ class worker_base
             logger->error(ZMQ_LOG, "\[WORKER\] set socket option ZMQ_IPV6 fail\n");
             return false;
         }
-
         identity_ = s_set_id(worker_socket_);
         logger->debug(ZMQ_LOG, "\[WORKER\] set ID %s to worker\n", identity_.c_str());
 
-        int linger = 0;
-        if (zmq_setsockopt(worker_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
-        {
-            worker_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[WORKER\] set socket option ZMQ_LINGER fail\n");
-            return false;
-        }
         /*
         - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
         - Value is an uint32 in ms (to be compatible with windows and kept the
@@ -291,12 +254,10 @@ class worker_base
 
             return false;
         }
-
         try
         {
             std::string IPPort;
             // should be like this tcp://192.168.1.17:5555;192.168.1.1:5555
-
             if (IP_and_port_source.empty())
             {
                 IPPort += protocol + IP_and_port_dest;
@@ -305,7 +266,6 @@ class worker_base
             {
                 IPPort += protocol + IP_and_port_source + ";" + IP_and_port_dest;
             }
-
             logger->debug(ZMQ_LOG, "\[WORKER\] connect to : %s\n", IPPort.c_str());
             worker_socket_.connect(IPPort);
             // tell the broker that we are ready
@@ -325,14 +285,11 @@ class worker_base
         {
             return false;
         }
-
         //  Send out heartbeats at regular intervals
         int64_t heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
         size_t liveness = HEARTBEAT_LIVENESS;
         size_t interval = INTERVAL_INIT;
-
         //  Initialize poll set
-
         while (1)
         {
             zmq::pollitem_t items[] = {
@@ -348,10 +305,6 @@ class worker_base
                 zmq::poll(items, 1, HEARTBEAT_INTERVAL);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
-
-                    // this is for test, delete it later
-                    //sleep(5);
-                    //std::lock_guard<M_MUTEX> wokerlock(worker_mutex);
                     zmsg_ptr msg(new zmsg(worker_socket_));
                     logger->debug(ZMQ_LOG, "\[WORKER\] get message from broker with %d part", msg->parts());
                     //msg->dump();
@@ -367,12 +320,8 @@ class worker_base
                         }
                         void *ID = getUniqueID();
                         Id2MsgMap.emplace(ID, msg);
-
-                        // ToDo: now we got the message, do main work
                         //std::cout << "receive message form client" << std::endl;
                         //msg.dump();
-                        // send back message to client, for test
-                        //msg.send(worker_socket_);
                         if (cb_)
                         {
                             cb_(data.c_str(), data.size(), ID);
@@ -421,11 +370,9 @@ class worker_base
                 // epoll time out
                 else if (--liveness == 0)
                 {
-
                     logger->warn(ZMQ_LOG, "\[WORKER\]  heartbeat failure, can't reach queue, identity : (%s) \n", identity_.c_str());
                     logger->warn(ZMQ_LOG, "\[WORKER\]  reconnecting in  %d msec..., identity : (%s)", interval, identity_.c_str());
                     s_sleep(interval);
-
                     if (interval < INTERVAL_MAX)
                     {
                         interval *= 2;
@@ -442,12 +389,6 @@ class worker_base
                             logger->warn(ZMQ_LOG, "\[WORKER\]  connect to broker return fail!\n");
                             continue;
                         }
-                        /*
-                        if (!monitor_this_socket())
-                        {
-                            logger->warn(ZMQ_LOG, "\[WORKER\] start monitor fail!\n");
-                            continue;
-                        }*/
                     }
                     catch (std::exception &e)
                     {
@@ -462,7 +403,6 @@ class worker_base
                     logger->debug(ZMQ_LOG, "\[WORKER\]  (%s) worker heartbeat\n", identity_.c_str());
                     s_send(worker_socket_, "HEARTBEAT");
                 }
-
                 if (worker_q.size())
                 {
                     try
@@ -500,16 +440,13 @@ class worker_base
     std::string IP_and_port_dest;
     std::string protocol;
     std::string IP_and_port_source;
-
     zmq::context_t ctx_;
     zmq::socket_t worker_socket_;
     std::atomic<long> uniqueID_atomic;
     std::map<void *, zmsg_ptr> Id2MsgMap;
-
-    std::condition_variable monitor_cond;
-    std::mutex monitor_mutex;
+    //std::condition_variable monitor_cond;
+    //std::mutex monitor_mutex;
     M_MUTEX worker_mutex;
-
     std::thread *routine_thread;
     std::thread *monitor_thread;
     bool should_exit_monitor_task;

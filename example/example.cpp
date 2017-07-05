@@ -19,7 +19,7 @@ void dealer_router_example();
 void dealer_router_router_dealer_example();
 int main(void)
 {
-    LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL); //WARN); //ALL);
+    LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
 
     dealer_router_example();
 
@@ -74,7 +74,6 @@ void dealer_router_router_dealer_example()
         wk1.set_monitor_cb(server_monitor_func);
         // for server, you need to set callback function first
         wk1.set_cb(worker_cb_001);
-
         wk1.set_protocol("ipc://");
         wk1.setIPPort("abcdefg");
         wk1.run();
@@ -91,10 +90,9 @@ void dealer_router_router_dealer_example()
                 }
             }
         }
-
         /************clean up ************/
-        broker_t.join();
     }
+    broker_t.join();
 }
 
 void dealer_router_example()

@@ -51,6 +51,14 @@ class server_base
         {
             monitor_thread->join();
         }
+
+        int linger = 0;
+        if (zmq_setsockopt(server_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
+        {
+            logger->error(ZMQ_LOG, "\[SERVER\] set ZMQ_LINGER return fail\n");
+        }
+        server_socket_.close();
+        ctx_.close();
     }
     void set_protocol(std::string protocol_)
     {
@@ -137,29 +145,6 @@ class server_base
     void *getUniqueID() { return (void *)(uniqueID_atomic++); };
 
   private:
-#if 0
-    void epoll_task()
-    {
-
-        std::unique_lock<std::mutex> monitor_lock(monitor_mutex);
-        // to do, receive signal then do other thing.
-        // if signal timeout, that means routine thread is abnormal. Or exit. start again.
-        while (1)
-        {
-            {
-                //monitor_cond.wait(monitor_lock);
-                if (monitor_cond.wait_for(dnsLock, std::chrono::milliseconds(EPOLL_TIMEOUT + 5000)) == std::cv_status::timeout)
-                {
-                    // timeout waitting for signal. there must be something wrong with epoll
-                    auto routine_fun = std::bind(&server_base::start, this);
-                    std::thread routine_thread(routine_fun);
-                    routine_thread.detach();
-                }
-            }
-        }
-
-    }
-#endif
     bool monitor_task()
     {
         void *server_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
@@ -386,8 +371,8 @@ class server_base
     std::atomic<long> uniqueID_atomic;
     std::map<void *, zmsg_ptr> Id2MsgMap;
 
-    std::condition_variable monitor_cond;
-    std::mutex monitor_mutex;
+    //   std::condition_variable monitor_cond;
+    //   std::mutex monitor_mutex;
 
     std::thread *routine_thread;
     std::thread *monitor_thread;

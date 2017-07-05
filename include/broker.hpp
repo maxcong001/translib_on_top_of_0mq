@@ -24,9 +24,24 @@ class broker_base
         backend_protocol = "tcp://";
         frontend_IPPort = "127.0.0.1:5561";
         backend_IPPort = "127.0.0.1:5560";
+        should_return = false;
     }
     virtual ~broker_base()
     {
+
+        int linger = 0;
+        if (zmq_setsockopt(frontend_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
+        {
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_LINGER of frontend_socket_ return fail\n");
+        }
+        if (zmq_setsockopt(backend_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
+        {
+            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_LINGER of backend_socket_ return fail\n");
+        }
+        frontend_socket_.close();
+        backend_socket_.close();
+        ctx_.close();
+        should_return = true;
     }
     void set_frontend_IPPort(std::string IPPort)
     {
@@ -62,6 +77,10 @@ class broker_base
     {
         return backend_IPPort;
     }
+    void stop()
+    {
+        should_return = true;
+    }
     bool run()
     {
         if (frontend_IPPort.empty())
@@ -79,22 +98,7 @@ class broker_base
             logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_IPV6 return fail\n");
             return false;
         }
-        /*
-        // generate random identity
-        char identity[10] = {};
-        sprintf(identity, "%04X-%04X", within(0x10000), within(0x10000));
-        printf("%s\n", identity);
-        frontend_socket_.setsockopt(ZMQ_IDENTITY, identity, strlen(identity));
-        */
 
-        int linger = 0;
-        if (zmq_setsockopt(frontend_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
-        {
-            frontend_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_LINGER return fail\n");
-            return false;
-        }
         /*
         - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
         - Value is an uint32 in ms (to be compatible with windows and kept the
@@ -121,7 +125,6 @@ class broker_base
         }
 
         // enable IPV6, we had already make sure that we are using TCP then we can set this option
-        //int enable_v6 = 1;
         if (zmq_setsockopt(backend_socket_, ZMQ_IPV6, &enable_v6, sizeof(enable_v6)) < 0)
         {
             backend_socket_.close();
@@ -129,22 +132,7 @@ class broker_base
             logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_IPV6 for back-end return fail\n");
             return false;
         }
-        /*
-        // generate random identity
-        char identity[10] = {};
-        sprintf(identity, "%04X-%04X", within(0x10000), within(0x10000));
-        printf("%s\n", identity);
-        backend_socket_.setsockopt(ZMQ_IDENTITY, identity, strlen(identity));
-        */
 
-        //int linger = 0;
-        if (zmq_setsockopt(backend_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
-        {
-            backend_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_LINGER for back-end return fail\n");
-            return false;
-        }
         /*
         - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
         - Value is an uint32 in ms (to be compatible with windows and kept the
@@ -197,6 +185,10 @@ class broker_base
         int64_t heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
         while (1)
         {
+            if (should_return)
+            {
+                return false;
+            }
             try
             {
                 zmq::pollitem_t items[] = {
@@ -381,13 +373,13 @@ class broker_base
                     heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
                 }
                 s_queue_purge();
-            }
-            catch (std::exception &e)
-            {
-                // log here
-                logger->error(ZMQ_LOG, "\[BROKER\] start broker fail\n");
-                return false;
-            }
+                }
+                catch (std::exception &e)
+                {
+                    // log here
+                    logger->error(ZMQ_LOG, "\[BROKER\] start broker fail\n");
+                    return false;
+                }
         }
         logger->error(ZMQ_LOG, "\[BROKER\] should not run into here!!!!!!!!!!!!!!\n");
     }
@@ -489,4 +481,6 @@ class broker_base
 
     std::queue<zmsg_ptr> front_end_q;
     std::queue<zmsg_ptr> back_end_q;
+
+    bool should_return;
 };
