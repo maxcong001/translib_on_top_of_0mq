@@ -97,6 +97,9 @@ class client_base
 
         zmsg_ptr messsag(new zmsg((char *)tmp_str.c_str()));
         messsag->push_back(tmp_str);
+        //messsag->dump();
+        // this is for test
+        //logger->error(ZMQ_LOG, "\[CLIENT\] !messsag.part is %d\n", messsag->parts());
         // send message to the queue
         {
             std::lock_guard<M_MUTEX> glock(client_mutex);
@@ -121,6 +124,8 @@ class client_base
         //zmsg messsag;
         zmsg_ptr messsag(new zmsg((char *)tmp_str.c_str()));
         messsag->push_back(tmp_str);
+        // this is for test
+        logger->error(ZMQ_LOG, "\[CLIENT\] !messsag.part is %d\n", messsag->parts());
         // send message to the queue
         {
             std::lock_guard<M_MUTEX> glock(client_mutex);

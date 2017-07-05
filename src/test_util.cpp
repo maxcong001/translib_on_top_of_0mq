@@ -44,7 +44,9 @@ void logging_cb(const char *file_ptr, int line, const char *func_ptr, Logger::Le
 
 void client_cb_001(const char *msg, size_t len, void *usr_data)
 {
-    std::cout << std::dec << " total message: " << message_count_recv++ << "\r" << std::flush;
+    //std::cout << "receive message in the client callback, message is :" << std::string(msg, len) << "size is " << len << std::endl;
+    std::cout
+        << std::dec << " total message: " << message_count_recv++ << std::endl; //"\r" << std::flush;
 }
 void server_cb_001(const char *data, size_t len, void *ID)
 {

@@ -19,20 +19,11 @@ See [test](test) for more guidance on how to run various test suites (e.g. unit 
 
 | time        | change                                                | version |
 |-------------|-------------------------------------------------------|---------|
+| 2017/07/05  | change send/receive to one thread                     | 1.2     |
 | 2017/06/27  | add heart beat and worker recovery                    | 1.2     |
 
 # Known issue
-### If client send a mess number of messages(as we are async, these message will "send" immediately), then the client will exit with sig-abort. This is cause by 0MQ, when a larg amount of messages come at the same time, the link list corrupted. 
 
-note: please do not write code like below(send to many messages in a while/for loop, we are async, will "send" immediately):
-```
-		for (int i = 0; i < 1000; i++)
-		{
-			ct1.send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
-		}
-````
-### If client send message too fast, sometimes the program will hang at "poll" or "epoll wait". This is cause by 0MQ, that when we send a message, even in the async mode, it will wait for a "response". It hang waiting for "response" even we set the send/receive timeout to 5s. 
-## [please do not send message faster than broker process message for a long time]
 
 # Overview
 

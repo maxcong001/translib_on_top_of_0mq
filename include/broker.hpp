@@ -285,8 +285,9 @@ class broker_base
 
                     zmsg_ptr msg(new zmsg(frontend_socket_));
                     // for debug
-                    logger->debug(ZMQ_LOG, "\[BROKER\] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                    msg->dump();
+                    // this is for test
+                    //logger->error(ZMQ_LOG, "\[BROKER\] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                    //msg->dump();
 
                     std::string identity = std::string(s_worker_dequeue());
                     logger->debug(ZMQ_LOG, "\[BROKER\] receive message from frontend, send message to worker with ID : %s", identity.c_str());
