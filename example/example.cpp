@@ -14,6 +14,22 @@
 #include <test_util.hpp>
 // message len that we will send
 #define MAX_LEN 20
+server_base st1;
+worker_base wk1;
+void server_cb_001(const char *data, size_t len, void *ID)
+{
+    /*
+    std::cout
+        << std::dec << "receive message form client : "
+        << " total message: " << message_count++ << std::endl;
+        */
+    st1.send(data, len, ID);
+}
+void worker_cb_001(const char *data, size_t len, void *ID)
+{
+    std::cout << std::dec << "receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+    wk1.send(data, len, ID);
+}
 
 void dealer_router_example();
 void dealer_router_router_dealer_example();
@@ -21,10 +37,13 @@ int main(void)
 {
     LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
 
-    dealer_router_example();
+  
 
     dealer_router_router_dealer_example();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      dealer_router_example();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+    logger->error(ZMQ_LOG, " ************   exit example ************\n");
+
     return 0;
 }
 void dealer_router_router_dealer_example()
@@ -48,7 +67,7 @@ void dealer_router_router_dealer_example()
         void *user_data = (void *)28;
         // start some clients
         std::vector<client_base *> client_vector;
-        for (int num = 0; num < 2; num++)
+        for (int num = 0; num < 5; num++)
         {
             client_vector.emplace_back(new client_base());
         }
@@ -77,11 +96,12 @@ void dealer_router_router_dealer_example()
         wk1.set_protocol("ipc://");
         wk1.setIPPort("abcdefg");
         wk1.run();
+
         /************send message ************/
-        for (int time = 0; time < 1; time++)
+        for (int time = 0; time < 10; time++)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 100; i++)
             {
                 for (auto tmp_client : client_vector)
                 {
@@ -90,7 +110,7 @@ void dealer_router_router_dealer_example()
             }
         }
         logger->error(ZMQ_LOG, " ************   exit DEALER <->(ROUTER<->ROUTER)<->DEALER MODE************\n");
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
         /************clean up ************/
         for (auto tmp_client : client_vector)
         {
@@ -132,7 +152,7 @@ void dealer_router_example()
         void *user_data = (void *)28;
         // start some clients
         std::vector<client_base *> client_vector;
-        for (int num = 0; num < 1; num++)
+        for (int num = 0; num < 20; num++)
         {
             client_vector.emplace_back(new client_base());
         }
@@ -144,10 +164,10 @@ void dealer_router_example()
             tmp_client->run();
         }
 
-        for (int time = 0; time < 1; time++)
+        for (int time = 0; time < 10; time++)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 100; i++)
             {
                 for (auto tmp_client : client_vector)
                 {

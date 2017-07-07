@@ -216,7 +216,7 @@ class broker_base
                             while (back_end_q.size())
                             {
                                 (back_end_q.front())->send(backend_socket_);
-                                (back_end_q.front()).reset();
+                                //(back_end_q.front()).reset();
                                 back_end_q.pop();
                             }
                         }
@@ -255,7 +255,7 @@ class broker_base
                             while (front_end_q.size())
                             {
                                 (front_end_q.front())->send(frontend_socket_);
-                                (front_end_q.front()).reset();
+                                //(front_end_q.front()).reset();
                                 front_end_q.pop();
                             }
                         }
@@ -279,7 +279,7 @@ class broker_base
                             while (front_end_q.size())
                             {
                                 (front_end_q.front())->send(frontend_socket_);
-                                (front_end_q.front()).reset();
+                                //(front_end_q.front()).reset();
                                 front_end_q.pop();
                             }
                         }
@@ -299,7 +299,7 @@ class broker_base
                             while (back_end_q.size())
                             {
                                 (back_end_q.front())->send(backend_socket_);
-                                (back_end_q.front()).reset();
+                                //(back_end_q.front()).reset();
                                 back_end_q.pop();
                             }
                         }

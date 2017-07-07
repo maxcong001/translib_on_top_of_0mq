@@ -9,9 +9,8 @@
 #include <utility>
 /*
 this file contains the util functions
-
 */
-#define EPOLL_TIMEOUT 1
+#define EPOLL_TIMEOUT 5
 #define HEARTBEAT_LIVENESS 3    //  3-5 is reasonable
 #define HEARTBEAT_INTERVAL 1000 //  msecs
 #define INTERVAL_INIT 1000      //  Initial reconnect

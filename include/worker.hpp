@@ -59,10 +59,10 @@ class worker_base
     {
         auto routine_fun = std::bind(&worker_base::start, this);
         routine_thread = new std::thread(routine_fun);
-        routine_thread->detach();
+        //routine_thread->detach();
         auto monitor_fun = std::bind(&worker_base::monitor_task, this);
         monitor_thread = new std::thread(monitor_fun);
-        monitor_thread->detach();
+        //monitor_thread->detach();
         // start monitor socket
         bool ret = monitor_this_socket();
         if (ret)
@@ -73,6 +73,7 @@ class worker_base
             logger->error(ZMQ_LOG, "\[WORKER\] start monitor socket fail!\n");
             return false;
         }
+        return ret;
     }
     void set_protocol(std::string protocol_)
     {
@@ -178,7 +179,7 @@ class worker_base
             {
                 zmq_close(WORKER_mon);
 
-                logger->warn(ZMQ_LOG, "\[WORKER\] will exit monitor task\n");
+                logger->warn(ZMQ_LOG, "\[WORKER\] will exit worker monitor task\n");
                 return true;
             }
             std::string address;
@@ -223,8 +224,9 @@ class worker_base
 
             int linger = 0;
             worker_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+            identity_ = s_set_id(worker_socket_);
 
-            logger->debug(ZMQ_LOG, "\[WORKER\] worker id set to %s\n", (s_set_id(worker_socket_)).c_str());
+            logger->debug(ZMQ_LOG, "\[WORKER\] worker id set to %s\n", identity_.c_str());
         }
         catch (std::exception &e)
         {
@@ -290,7 +292,7 @@ class worker_base
                 {
                     worker_q.pop();
                 }
-                logger->warn(ZMQ_LOG, "\[WORKER\] will exit monitor task\n");
+                logger->warn(ZMQ_LOG, "\[WORKER\] worker will exit \n");
                 return true;
             }
             try

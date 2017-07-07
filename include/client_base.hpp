@@ -286,7 +286,7 @@ class client_base
             client_socket_.setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
             client_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
             int linger = 0;
-            client_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+            //client_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
         }
         catch (std::exception &e)
         {
