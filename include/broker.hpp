@@ -28,19 +28,6 @@ class broker_base
     }
     virtual ~broker_base()
     {
-
-        int linger = 0;
-        if (zmq_setsockopt(frontend_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
-        {
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_LINGER of frontend_socket_ return fail\n");
-        }
-        if (zmq_setsockopt(backend_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
-        {
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_LINGER of backend_socket_ return fail\n");
-        }
-        frontend_socket_.close();
-        backend_socket_.close();
-        ctx_.close();
         should_return = true;
     }
     void set_frontend_IPPort(std::string IPPort)
@@ -88,74 +75,27 @@ class broker_base
             logger->error(ZMQ_LOG, "\[BROKER\] IP or Port is empty! please make sure you had set the IP and Port\n");
             return false;
         }
-
-        // enable IPV6, we had already make sure that we are using TCP then we can set this option
-        int enable_v6 = 1;
-        if (zmq_setsockopt(frontend_socket_, ZMQ_IPV6, &enable_v6, sizeof(enable_v6)) < 0)
+        try
         {
-            frontend_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_IPV6 return fail\n");
-            return false;
+            /***front end***/
+            // enable IPV6, we had already make sure that we are using TCP then we can set this option
+            int enable_v6 = 1;
+            frontend_socket_.setsockopt(ZMQ_IPV6, &enable_v6, sizeof(enable_v6));
+            /*Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.*/
+            int iRcvSendTimeout = 5000; // millsecond Make it configurable
+            frontend_socket_.setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+            frontend_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+
+            /***back end***/
+            // enable IPV6, we had already make sure that we are using TCP then we can set this option
+            backend_socket_.setsockopt(ZMQ_IPV6, &enable_v6, sizeof(enable_v6));
+            /*Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.*/
+            backend_socket_.setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+            backend_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
         }
-
-        /*
-        - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
-        - Value is an uint32 in ms (to be compatible with windows and kept the
-        implementation simple).
-        - Default to 0, which would mean block infinitely.
-        - On timeout, return EAGAIN.
-        Note: Maxx will this work for DEALER mode?
-        */
-        int iRcvSendTimeout = 5000; // millsecond Make it configurable
-
-        if (zmq_setsockopt(frontend_socket_, ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
+        catch (std::exception &e)
         {
-            frontend_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_RCVTIMEO return fail\n");
-            return false;
-        }
-        if (zmq_setsockopt(frontend_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
-        {
-            frontend_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_SNDTIMEO return fail\n");
-            return false;
-        }
-
-        // enable IPV6, we had already make sure that we are using TCP then we can set this option
-        if (zmq_setsockopt(backend_socket_, ZMQ_IPV6, &enable_v6, sizeof(enable_v6)) < 0)
-        {
-            backend_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_IPV6 for back-end return fail\n");
-            return false;
-        }
-
-        /*
-        - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
-        - Value is an uint32 in ms (to be compatible with windows and kept the
-        implementation simple).
-        - Default to 0, which would mean block infinitely.
-        - On timeout, return EAGAIN.
-        Note: Maxx will this work for DEALER mode?
-        */
-        //int iRcvSendTimeout = 5000; // millsecond Make it configurable
-
-        if (zmq_setsockopt(backend_socket_, ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
-        {
-            backend_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_RCVTIMEO for back-end return fail\n");
-            return false;
-        }
-        if (zmq_setsockopt(backend_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
-        {
-            backend_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_SNDTIMEO for back-end return fail\n");
-
+            logger->error(ZMQ_LOG, "\[BROKER\] set socket option return fail\n");
             return false;
         }
 
@@ -181,12 +121,26 @@ class broker_base
             logger->error(ZMQ_LOG, "\[BROKER\] backend fail, IPPort is %s", (backend_protocol + backend_IPPort).c_str());
             return false;
         }
+        
         //  Send out heartbeats at regular intervals
         int64_t heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
         while (1)
         {
             if (should_return)
             {
+                try
+                {
+                    int linger = 0;
+                    frontend_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+                    backend_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+                }
+                catch (std::exception &e)
+                {
+                    logger->error(ZMQ_LOG, "\[BROKER\] set ZMQ_LINGER return fail\n");
+                }
+                //frontend_socket_.close();
+                //backend_socket_.close();
+                //ctx_.close();
                 return false;
             }
             try
@@ -229,7 +183,9 @@ class broker_base
                             if (strcmp(msg->address(), "HEARTBEAT") == 0)
                             {
                                 //s_worker_delete(identity);
-                                //s_worker_append(identity);
+                                //  note: be careful about the following code, for performance/ send/receive problem.
+                                s_worker_append(identity);
+
                                 logger->debug(ZMQ_LOG, "\[BROKER\] receive HEARTBEAT message from backend");
                                 s_worker_refresh(identity);
                             }
@@ -373,13 +329,13 @@ class broker_base
                     heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
                 }
                 s_queue_purge();
-                }
-                catch (std::exception &e)
-                {
-                    // log here
-                    logger->error(ZMQ_LOG, "\[BROKER\] start broker fail\n");
-                    return false;
-                }
+            }
+            catch (std::exception &e)
+            {
+                // log here
+                logger->error(ZMQ_LOG, "\[BROKER\] start broker fail\n");
+                return false;
+            }
         }
         logger->error(ZMQ_LOG, "\[BROKER\] should not run into here!!!!!!!!!!!!!!\n");
     }

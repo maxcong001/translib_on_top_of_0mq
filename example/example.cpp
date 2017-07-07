@@ -24,7 +24,7 @@ int main(void)
     dealer_router_example();
 
     dealer_router_router_dealer_example();
-
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     return 0;
 }
 void dealer_router_router_dealer_example()
@@ -48,7 +48,7 @@ void dealer_router_router_dealer_example()
         void *user_data = (void *)28;
         // start some clients
         std::vector<client_base *> client_vector;
-        for (int num = 0; num < 20; num++)
+        for (int num = 0; num < 2; num++)
         {
             client_vector.emplace_back(new client_base());
         }
@@ -67,7 +67,7 @@ void dealer_router_router_dealer_example()
         bk1.set_backtend_IPPort("abcdefg");
         auto broker_fun = std::bind(&broker_base::run, &bk1);
         std::thread broker_t(broker_fun);
-        //broker_t.detach();
+        broker_t.detach();
 
         /************worker related ************/
         logger->debug(ZMQ_LOG, "starting worker now\n");
@@ -77,7 +77,6 @@ void dealer_router_router_dealer_example()
         wk1.set_protocol("ipc://");
         wk1.setIPPort("abcdefg");
         wk1.run();
-
         /************send message ************/
         for (int time = 0; time < 1; time++)
         {
@@ -90,9 +89,19 @@ void dealer_router_router_dealer_example()
                 }
             }
         }
+        logger->error(ZMQ_LOG, " ************   exit DEALER <->(ROUTER<->ROUTER)<->DEALER MODE************\n");
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         /************clean up ************/
+        for (auto tmp_client : client_vector)
+        {
+            if (tmp_client)
+            {
+                delete tmp_client;
+            }
+        }
+
+        bk1.stop();
     }
-    broker_t.join();
 }
 
 void dealer_router_example()
@@ -123,7 +132,7 @@ void dealer_router_example()
         void *user_data = (void *)28;
         // start some clients
         std::vector<client_base *> client_vector;
-        for (int num = 0; num < 20; num++)
+        for (int num = 0; num < 1; num++)
         {
             client_vector.emplace_back(new client_base());
         }
@@ -135,10 +144,10 @@ void dealer_router_example()
             tmp_client->run();
         }
 
-        for (int time = 0; time < 1000; time++)
+        for (int time = 0; time < 1; time++)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            for (int i = 0; i < 40; i++)
+            for (int i = 0; i < 10; i++)
             {
                 for (auto tmp_client : client_vector)
                 {
@@ -146,5 +155,6 @@ void dealer_router_example()
                 }
             }
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 }

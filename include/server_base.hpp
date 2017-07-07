@@ -43,22 +43,14 @@ class server_base
     {
         should_exit_monitor_task = true;
         should_exit_routine_task = true;
-        if (routine_thread)
-        {
-            routine_thread->join();
-        }
         if (monitor_thread)
         {
-            monitor_thread->join();
+            // monitor_thread->join();
         }
-
-        int linger = 0;
-        if (zmq_setsockopt(server_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
+        if (routine_thread)
         {
-            logger->error(ZMQ_LOG, "\[SERVER\] set ZMQ_LINGER return fail\n");
+            // routine_thread->join();
         }
-        server_socket_.close();
-        ctx_.close();
     }
     void set_protocol(std::string protocol_)
     {
@@ -165,6 +157,7 @@ class server_base
         {
             if (should_exit_monitor_task)
             {
+                zmq_close(server_mon);
                 logger->warn(ZMQ_LOG, "\[SERVER\] monitor task will exit\n");
                 return true;
             }
@@ -198,51 +191,23 @@ class server_base
     }
     bool start()
     {
-        // enable IPV6, we had already make sure that we are using TCP then we can set this option
-        int enable_v6 = 1;
-        if (zmq_setsockopt(server_socket_, ZMQ_IPV6, &enable_v6, sizeof(enable_v6)) < 0)
+        try
         {
-            zmq_close(server_socket_);
-            zmq_ctx_destroy(&ctx_);
-            logger->error(ZMQ_LOG, "\[SERVER\] set socket optioon ZMQ_IPV6 fail\n");
+            // enable IPV6, we had already make sure that we are using TCP then we can set this option
+            int enable_v6 = 1;
+            server_socket_.setsockopt(ZMQ_IPV6, &enable_v6, sizeof(enable_v6));
+            /*Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.*/
+            int iRcvSendTimeout = 5000; // millsecond Make it configurable
+            server_socket_.setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+            server_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+            int linger = 0;
+            server_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+        }
+        catch (std::exception &e)
+        {
+            logger->error(ZMQ_LOG, "\[SERVER\] set socket option return fail\n");
             return false;
         }
-        /*
-        - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
-        - Value is an uint32 in ms (to be compatible with windows and kept the
-        implementation simple).
-        - Default to 0, which would mean block infinitely.
-        - On timeout, return EAGAIN.
-        Note: Maxx will this work for DEALER mode?
-        */
-        int iRcvTimeout = 5000; // millsecond Make it configurable
-
-        if (zmq_setsockopt(server_socket_, ZMQ_RCVTIMEO, &iRcvTimeout, sizeof(iRcvTimeout)) < 0)
-        {
-            zmq_close(server_socket_);
-            zmq_ctx_destroy(&ctx_);
-            logger->error(ZMQ_LOG, "\[SERVER\] set socket optioon ZMQ_RCVTIMEO fail\n");
-            return false;
-        }
-        if (zmq_setsockopt(server_socket_, ZMQ_SNDTIMEO, &iRcvTimeout, sizeof(iRcvTimeout)) < 0)
-        {
-            zmq_close(server_socket_);
-            zmq_ctx_destroy(&ctx_);
-            logger->error(ZMQ_LOG, "\[SERVER\] set socket optioon ZMQ_SNDTIMEO fail\n");
-
-            return false;
-        }
-#if 0
-        int linger = 0;
-        if (zmq_setsockopt(server_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
-        {
-            zmq_close(server_socket_);
-            zmq_ctx_destroy(&ctx_);
-            logger->error(ZMQ_LOG, "\[SERVER\] set socket optioon ZMQ_LINGER fail\n");
-
-            return false;
-        }
-#endif
         try
         {
             if (IP_and_port.empty())
@@ -267,6 +232,25 @@ class server_base
         {
             if (should_exit_routine_task)
             {
+                /*
+                try
+                {
+                    int linger = 0;
+                    server_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+                }
+                catch (std::exception &e)
+                {
+                    logger->error(ZMQ_LOG, "\[SERVER\] set ZMQ_LINGER return fail\n");
+                }
+                */
+                // server_socket_.close();
+                //ctx_.close();
+                //server_q.clear();
+                while (server_q.size())
+                {
+                    server_q.pop();
+                }
+
                 logger->warn(ZMQ_LOG, "\[SERVER\]  server routine task will exit\n");
                 return true;
             }

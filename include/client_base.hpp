@@ -139,9 +139,10 @@ class client_base
     {
         auto routine_fun = std::bind(&client_base::start, this);
         routine_thread = new std::thread(routine_fun);
-        //routine_thread.detach();
+        routine_thread->detach();
         auto monitor_fun = std::bind(&client_base::monitor_task, this);
         monitor_thread = new std::thread(monitor_fun);
+        monitor_thread->detach();
 
         bool ret = monitor_this_socket();
         if (ret)
@@ -169,28 +170,17 @@ class client_base
 
     bool stop()
     {
-
+        should_exit_monitor_task = true;
+        if (monitor_thread)
+        {
+            //monitor_thread->join();
+        }
         // let the routine thread exit
         should_stop = true;
         if (routine_thread)
         {
-            routine_thread->join();
+            //routine_thread->join();
         }
-        should_exit_monitor_task = true;
-
-        if (monitor_thread)
-        {
-            monitor_thread->join();
-        }
-
-        int linger = 0;
-        if (zmq_setsockopt(client_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
-        {
-            logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
-        }
-
-        client_socket_.close();
-        ctx_.close();
         // to do, just return true
 
         return true;
@@ -234,6 +224,7 @@ class client_base
             logger->error(ZMQ_LOG, "\[CLIENT\] start PAIR socket fail!\n");
             return false;
         }
+
         try
         {
             int rc = zmq_connect(client_mon, monitor_path.c_str());
@@ -249,14 +240,14 @@ class client_base
         catch (std::exception &e)
         {
             logger->error(ZMQ_LOG, "\[CLIENT\] connect to monitor socket fail\n");
-
             return false;
         }
         while (1)
         {
             if (should_exit_monitor_task)
             {
-                logger->debug(ZMQ_LOG, "\[CLIENT\] will exit monitor task\n");
+                zmq_close(client_mon);
+                logger->warn(ZMQ_LOG, "\[CLIENT\] will exit monitor task\n");
                 return true;
             }
             std::string address;
@@ -282,48 +273,27 @@ class client_base
         return ((rc == 0) ? true : false);
     }
 
-    bool send_to_queue(const char *msg, size_t len)
-    {
-
-        return true;
-    }
-
     bool start()
     {
-        // enable IPV6, we had already make sure that we are using TCP then we can set this option
-        int enable_v6 = 1;
-        if (zmq_setsockopt(client_socket_, ZMQ_IPV6, &enable_v6, sizeof(enable_v6)) < 0)
+
+        try
         {
-            client_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_IPV6 option return fail!\n");
+            // enable IPV6, we had already make sure that we are using TCP then we can set this option
+            int enable_v6 = 1;
+            client_socket_.setsockopt(ZMQ_IPV6, &enable_v6, sizeof(enable_v6));
+            /*Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.*/
+            int iRcvSendTimeout = 5000; // millsecond Make it configurable
+            client_socket_.setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+            client_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+            int linger = 0;
+            client_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+        }
+        catch (std::exception &e)
+        {
+            logger->error(ZMQ_LOG, "\[CLIENT\] set socket option return fail\n");
             return false;
         }
 
-        /*
-        - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
-        - Value is an uint32 in ms (to be compatible with windows and kept the
-        implementation simple).
-        - Default to 0, which would mean block infinitely.
-        - On timeout, return EAGAIN.
-        Note: Maxx will this work for DEALER mode?
-        */
-        int iRcvSendTimeout = 5000; // millsecond Make it configurable
-
-        if (zmq_setsockopt(client_socket_, ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
-        {
-            client_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_RCVTIMEO return fail\n");
-            return false;
-        }
-        if (zmq_setsockopt(client_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
-        {
-            client_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_SNDTIMEO return fail\n");
-            return false;
-        }
         try
         {
             std::string IPPort;
@@ -352,6 +322,22 @@ class client_base
             if (should_stop)
             {
                 logger->warn(ZMQ_LOG, "\[CLIENT\] client thread will exit !");
+                /*
+                try
+                {
+                    int linger = 0;
+                    client_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+                }
+                catch (std::exception &e)
+                {
+                    logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
+                }
+                */
+                //client_socket_.close();
+                //logger->warn(ZMQ_LOG, "\[CLIENT\] client_socket_.close() success\n");
+
+                //ctx_.close();
+                //logger->warn(ZMQ_LOG, "\[CLIENT\] ctx_.close() success\n");
                 return true;
             }
             try

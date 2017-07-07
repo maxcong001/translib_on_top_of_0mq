@@ -45,33 +45,24 @@ class worker_base
     {
         should_exit_monitor_task = true;
         should_exit_routine_task = true;
-        if (routine_thread)
-        {
-            routine_thread->join();
-        }
         if (monitor_thread)
         {
-            monitor_thread->join();
+            //monitor_thread->join();
         }
-
-        int linger = 0;
-        if (zmq_setsockopt(worker_socket_, ZMQ_LINGER, &linger, sizeof(linger)) < 0)
+        if (routine_thread)
         {
-            logger->error(ZMQ_LOG, "\[WORKER\] set ZMQ_LINGER of frontend_socket_ return fail\n");
+            //routine_thread->join();
         }
-
-        worker_socket_.close();
-        ctx_.close();
     }
 
     bool run()
     {
         auto routine_fun = std::bind(&worker_base::start, this);
         routine_thread = new std::thread(routine_fun);
-        //routine_thread->detach();
+        routine_thread->detach();
         auto monitor_fun = std::bind(&worker_base::monitor_task, this);
         monitor_thread = new std::thread(monitor_fun);
-        //monitor_thread->detach();
+        monitor_thread->detach();
         // start monitor socket
         bool ret = monitor_this_socket();
         if (ret)
@@ -128,7 +119,9 @@ class worker_base
             (iter->second)->push_back(tmp_ustr);
             {
                 std::lock_guard<M_MUTEX> glock(worker_mutex);
+                //note
                 worker_q.emplace(iter->second);
+                //worker_q.push(iter->second);
             }
             Id2MsgMap.erase(iter);
         }
@@ -154,7 +147,6 @@ class worker_base
     void *getUniqueID() { return (void *)(uniqueID_atomic++); };
 
   private:
-
     bool monitor_task()
     {
         void *WORKER_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
@@ -184,6 +176,8 @@ class worker_base
         {
             if (should_exit_monitor_task)
             {
+                zmq_close(WORKER_mon);
+
                 logger->warn(ZMQ_LOG, "\[WORKER\] will exit monitor task\n");
                 return true;
             }
@@ -217,41 +211,24 @@ class worker_base
     // ph1 mainly set the connection option and connect to the borker.
     bool start_ph1()
     {
-        // enable IPV6, we had already make sure that we are using TCP then we can set this option
-        int enable_v6 = 1;
-        if (zmq_setsockopt(worker_socket_, ZMQ_IPV6, &enable_v6, sizeof(enable_v6)) < 0)
+        try
         {
-            worker_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[WORKER\] set socket option ZMQ_IPV6 fail\n");
-            return false;
+            // enable IPV6, we had already make sure that we are using TCP then we can set this option
+            int enable_v6 = 1;
+            worker_socket_.setsockopt(ZMQ_IPV6, &enable_v6, sizeof(enable_v6));
+            /*Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.*/
+            int iRcvSendTimeout = 5000; // millsecond Make it configurable
+            worker_socket_.setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+            worker_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+
+            int linger = 0;
+            worker_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+
+            logger->debug(ZMQ_LOG, "\[WORKER\] worker id set to %s\n", (s_set_id(worker_socket_)).c_str());
         }
-        identity_ = s_set_id(worker_socket_);
-        logger->debug(ZMQ_LOG, "\[WORKER\] set ID %s to worker\n", identity_.c_str());
-
-        /*
-        - Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.
-        - Value is an uint32 in ms (to be compatible with windows and kept the
-        implementation simple).
-        - Default to 0, which would mean block infinitely.
-        - On timeout, return EAGAIN.
-        Note: Maxx will this work for DEALER mode?
-        */
-        int iRcvSendTimeout = 5000; // millsecond Make it configurable
-
-        if (zmq_setsockopt(worker_socket_, ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
+        catch (std::exception &e)
         {
-            worker_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[WORKER\] set socket option ZMQ_RCVTIMEO fail\n");
-            return false;
-        }
-        if (zmq_setsockopt(worker_socket_, ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout)) < 0)
-        {
-            worker_socket_.close();
-            ctx_.close();
-            logger->error(ZMQ_LOG, "\[WORKER\] set socket option ZMQ_SNDTIMEO fail\n");
-
+            logger->error(ZMQ_LOG, "\[CLIENT\] set socket option return fail\n");
             return false;
         }
         try
@@ -296,6 +273,23 @@ class worker_base
                 {worker_socket_, 0, ZMQ_POLLIN, 0}};
             if (should_exit_routine_task)
             {
+                /*
+                try
+                {
+                    int linger = 0;
+                    worker_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+                }
+                catch (std::exception &e)
+                {
+                    logger->error(ZMQ_LOG, "\[WORKER\] set ZMQ_LINGER return fail\n");
+                }
+                */
+                //worker_socket_.close();
+                //ctx_.close();
+                while (worker_q.size())
+                {
+                    worker_q.pop();
+                }
                 logger->warn(ZMQ_LOG, "\[WORKER\] will exit monitor task\n");
                 return true;
             }
@@ -305,7 +299,7 @@ class worker_base
                 zmq::poll(items, 1, HEARTBEAT_INTERVAL);
                 if (items[0].revents & ZMQ_POLLIN)
                 {
-                    zmsg_ptr msg(new zmsg(worker_socket_));
+                    zmsg_ptr msg(new zmsg(worker_socket_)); //, [&msg] { msg.reset(); });
                     logger->debug(ZMQ_LOG, "\[WORKER\] get message from broker with %d part", msg->parts());
                     //msg->dump();
                     // now we get the message .
@@ -356,6 +350,7 @@ class worker_base
                             {
                                 (worker_q.front())->send(worker_socket_);
                                 // make sure the the reference count is 0
+                                // note : delete the following code ???????
                                 (worker_q.front()).reset();
                                 worker_q.pop();
                             }
@@ -442,6 +437,7 @@ class worker_base
     std::string IP_and_port_source;
     zmq::context_t ctx_;
     zmq::socket_t worker_socket_;
+
     std::atomic<long> uniqueID_atomic;
     std::map<void *, zmsg_ptr> Id2MsgMap;
     //std::condition_variable monitor_cond;
