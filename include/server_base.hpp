@@ -103,13 +103,14 @@ class server_base
 
     size_t send(const char *msg, size_t len, void *ID)
     {
+        std::lock_guard<M_MUTEX> glock(server_mutex);
         auto iter = Id2MsgMap.find(ID);
         if (iter != Id2MsgMap.end())
         {
             zmsg::ustring tmp_ustr((unsigned char *)msg, len);
             (iter->second)->push_back(tmp_ustr);
             {
-                std::lock_guard<M_MUTEX> glock(server_mutex);
+
                 server_q.emplace(iter->second);
             }
             Id2MsgMap.erase(iter);
@@ -271,7 +272,10 @@ class server_base
                         continue;
                     }
                     void *ID = getUniqueID();
-                    Id2MsgMap.emplace(ID, msg);
+                    {
+                        std::lock_guard<M_MUTEX> glock(server_mutex);
+                        Id2MsgMap.emplace(ID, msg);
+                    }
 
                     // ToDo: now we got the message, do main work
                     //std::cout << "receive message form client" << std::endl;
@@ -296,9 +300,15 @@ class server_base
                             // check size again under the lock
                             while (server_q.size())
                             {
+                                //(server_q.front()).use_count();
                                 (server_q.front())->send(server_socket_);
+
+                                logger->error(ZMQ_LOG, "\[SERVER\] server_q size is %d, reference count is %d\n", server_q.size(), (server_q.front()).use_count());
                                 // make sure the the reference count is 0
-                                (server_q.front()).reset();
+                                //(server_q.front()).use_count();
+
+                                (server_q.front())
+                                    .reset();
                                 server_q.pop();
                             }
                         }

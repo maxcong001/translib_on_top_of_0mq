@@ -275,7 +275,6 @@ class client_base
 
     bool start()
     {
-
         try
         {
             // enable IPV6, we had already make sure that we are using TCP then we can set this option
@@ -286,7 +285,7 @@ class client_base
             client_socket_.setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
             client_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
             int linger = 0;
-            //client_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+            client_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
         }
         catch (std::exception &e)
         {
@@ -332,12 +331,7 @@ class client_base
                 {
                     logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
                 }
-                */
-                //client_socket_.close();
-                //logger->warn(ZMQ_LOG, "\[CLIENT\] client_socket_.close() success\n");
-
-                //ctx_.close();
-                //logger->warn(ZMQ_LOG, "\[CLIENT\] ctx_.close() success\n");
+*/
                 return true;
             }
             try

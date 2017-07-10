@@ -47,10 +47,12 @@ class worker_base
         should_exit_routine_task = true;
         if (monitor_thread)
         {
+
             //monitor_thread->join();
         }
         if (routine_thread)
         {
+
             //routine_thread->join();
         }
     }

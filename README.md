@@ -24,7 +24,9 @@ See [test](test) for more guidance on how to run various test suites (e.g. unit 
 
 # Known issue
 
-when start too many client threads. SegV may happens for client side. 
+When you want to delete client/server/broker/worker, you need to make sure all the message is sent out. And make sure do not send message after you had delete client/server/broker/worker. Or SegV may happen. 
+Possible root cause:
+because we had set the linger time to 0. if the server is gone, the message is saved in the message box, if you delete the context and socket if the client, the socket/context pointer will be NULL, So when sending the message in the mail box will cause SegV. Why do we set the linger time to 0? we want to exit the thread soon. (considering not set the linger time to 0 ?????) 
 
 # Overview
 
