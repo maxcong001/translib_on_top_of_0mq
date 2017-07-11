@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <test_util.hpp>
 // message len that we will send
-#define MAX_LEN 20
+#define MAX_LEN 4000
 server_base st1;
 worker_base wk1;
 worker_base wk2;
@@ -27,22 +27,26 @@ void server_cb_001(const char *data, size_t len, void *ID)
         << " total message: " << message_count++ << std::endl;
         */
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	//std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	//std::cout << std::dec << " \[SERVER\] total message: " << message_count++ << " ID is " << (long)ID << std::endl;
 	st1.send(data, len, ID);
 }
 void worker_cb_001(const char *data, size_t len, void *ID)
 {
-	std::cout << std::dec << "\[WORKER 1\]receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+	//std::cout << std::dec << "\[WORKER 1\]receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+	//std::cout << std::dec << "\[WORKER 1\] total message: " << message_count++ << std::endl;
 	wk1.send(data, len, ID);
 }
 void worker_cb_002(const char *data, size_t len, void *ID)
 {
-	std::cout << std::dec << "\[WORKER 2\]receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+	//std::cout << std::dec << "\[WORKER 2\]receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+	//std::cout << std::dec << "\[WORKER 2\] total message: " << message_count++ << std::endl;
 	wk2.send(data, len, ID);
 }
 void worker_cb_003(const char *data, size_t len, void *ID)
 {
-	std::cout << std::dec << "\[WORKER 3\]receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+	//std::cout << std::dec << "\[WORKER 3\]receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+	//std::cout << std::dec << "\[WORKER 3\] total message: " << message_count++ << std::endl;
 	wk3.send(data, len, ID);
 }
 void dealer_router_example();
@@ -51,11 +55,11 @@ int main(void)
 {
 	LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
 
-	dealer_router_router_dealer_example();
+	//dealer_router_router_dealer_example();
+
 	dealer_router_example();
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	logger->error(ZMQ_LOG, " ************   exit example ************\n");
-
 	return 0;
 }
 void dealer_router_router_dealer_example()
@@ -76,10 +80,11 @@ void dealer_router_router_dealer_example()
 		//test if binary safe
 		//buffer[10] = 0;
 		std::string test_str(buffer, MAX_LEN);
-		void *user_data = (void *)28;
+
 		// start some clients
 		std::vector<client_base *> client_vector;
-		for (int num = 0; num < 5; num++)
+		// should not be larger than 15
+		for (int num = 0; num < 15; num++)
 		{
 			client_vector.emplace_back(new client_base());
 		}
@@ -122,9 +127,10 @@ void dealer_router_router_dealer_example()
 		wk3.set_protocol("ipc://");
 		wk3.setIPPort("abcdefg");
 		wk3.run();
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 		/************send message ************/
-		for (int time = 0; time < 10; time++)
+		for (int time = 0; time < 200; time++)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			for (int i = 0; i < 100; i++)
@@ -132,11 +138,12 @@ void dealer_router_router_dealer_example()
 				for (auto tmp_client : client_vector)
 				{
 					tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+					user_data = ((char *)user_data) + 1;
 				}
 			}
 		}
 		logger->error(ZMQ_LOG, " ************   exit DEALER <->(ROUTER<->ROUTER)<->DEALER MODE************\n");
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(20000));
 		/************clean up ************/
 		for (auto tmp_client : client_vector)
 		{
@@ -145,8 +152,7 @@ void dealer_router_router_dealer_example()
 				delete tmp_client;
 			}
 		}
-
-		bk1.stop();
+		//bk1.stop();
 	}
 }
 
@@ -175,7 +181,7 @@ void dealer_router_example()
 		}
 
 		std::string test_str(buffer, MAX_LEN);
-		void *user_data = (void *)28;
+		void *user_data = (void *)0;
 		// start some clients
 		std::vector<client_base *> client_vector;
 		for (int num = 0; num < 20; num++)
@@ -198,10 +204,19 @@ void dealer_router_example()
 				for (auto tmp_client : client_vector)
 				{
 					tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+					user_data = ((char *)user_data) + 1;
 				}
 			}
 		}
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(100000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+		/************clean up ************/
+		for (auto tmp_client : client_vector)
+		{
+			if (tmp_client)
+			{
+				delete tmp_client;
+			}
+		}
 	}
 }

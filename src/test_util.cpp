@@ -46,9 +46,8 @@ void client_cb_001(const char *msg, size_t len, void *usr_data)
 {
     //std::cout << "receive message in the client callback, message is :" << std::string(msg, len) << "size is " << len << std::endl;
     std::cout
-        << std::dec << " total message: " << message_count_recv++ << std::endl; //"\r" << std::flush;
+        << std::dec << " total message: " << message_count_recv++ << " user data is :" << (long)usr_data << std::endl; //"\r" << std::flush;
 }
-
 
 void client_monitor_func(int event, int value, std::string &address)
 {

@@ -225,7 +225,7 @@ class worker_base
             worker_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
 
             int linger = 0;
-            worker_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+            //worker_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
             identity_ = s_set_id(worker_socket_);
 
             logger->debug(ZMQ_LOG, "\[WORKER\] worker id set to %s\n", identity_.c_str());

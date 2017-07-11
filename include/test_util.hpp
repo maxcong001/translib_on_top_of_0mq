@@ -8,7 +8,7 @@
 
 std::atomic<long> message_count;
 std::atomic<long> message_count_recv;
-
+void *user_data = (void *)0;
 
 size_t time_str(uint32_t secs, uint32_t msec, char *out_ptr, size_t sz);
 void logging_cb(const char *file_ptr, int line, const char *func_ptr, Logger::Level lev, const char *msg);
