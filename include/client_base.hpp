@@ -332,19 +332,17 @@ class client_base
             if (should_stop)
             {
                 logger->warn(ZMQ_LOG, "\[CLIENT\] client thread will exit !");
-                client_socket_->close();
-                ctx_->close();
-                /*
                 try
                 {
                     int linger = 0;
-                    client_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+                    client_socket_->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
                 }
                 catch (std::exception &e)
                 {
-                    logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
+                    logger->warn(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
                 }
-*/
+                client_socket_->close();
+                ctx_->close();
                 return true;
             }
             try
@@ -355,6 +353,15 @@ class client_base
                 if (should_stop)
                 {
                     logger->warn(ZMQ_LOG, "\[CLIENT\] client thread will exit !");
+                    try
+                    {
+                        int linger = 0;
+                        client_socket_->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+                    }
+                    catch (std::exception &e)
+                    {
+                        logger->warn(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
+                    }
                     client_socket_->close();
                     ctx_->close();
                     return true;

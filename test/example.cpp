@@ -130,10 +130,10 @@ void dealer_router_router_dealer_example()
 		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 		/************send message ************/
-		for (int time = 0; time < 200; time++)
+		for (int time = 0; time < 20; time++)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			for (int i = 0; i < 100; i++)
+			for (int i = 0; i < 10; i++)
 			{
 				for (auto tmp_client : client_vector)
 				{
@@ -196,10 +196,10 @@ void dealer_router_example()
 			tmp_client->run();
 		}
 
-		for (int time = 0; time < 100; time++)
+		for (int time = 0; time < 10; time++)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			for (int i = 0; i < 100; i++)
+			for (int i = 0; i < 10; i++)
 			{
 				for (auto tmp_client : client_vector)
 				{
