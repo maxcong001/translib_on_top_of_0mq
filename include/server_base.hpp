@@ -258,25 +258,6 @@ class server_base
             {
                 // by default we wait for 500ms then so something. like hreatbeat
                 zmq::poll(items, 1, EPOLL_TIMEOUT);
-                if (should_exit_routine_task)
-                {
-
-                    try
-                    {
-                        int linger = 0;
-                        server_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
-                    }
-                    catch (std::exception &e)
-                    {
-                        logger->warn(ZMQ_LOG, "\[SERVER\] set ZMQ_LINGER return fail\n");
-                    }
-
-                    server_socket_.close();
-                    ctx_.close();
-
-                    logger->warn(ZMQ_LOG, "\[SERVER\]  server routine task will exit\n");
-                    return true;
-                }
                 if (items[0].revents & ZMQ_POLLIN)
                 {
                     // this is for test, delete it later

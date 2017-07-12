@@ -18,8 +18,9 @@ class client_base
     // you need to set IPPort info and then call run() when before
     client_base()
     {
-        ctx_ = new zmq::context_t(1);
-        client_socket_ = new zmq::socket_t(*ctx_, ZMQ_DEALER);
+        client_socket_ = NULL;
+        ctx_ = NULL;
+
         // set random monitor path
         monitor_path.clear();
         if (monitor_path.empty())
@@ -40,6 +41,7 @@ class client_base
         protocol = "tcp://";
         IP_and_port_dest = "127.0.0.1:5561";
     }
+#if 0
     client_base(std::string IPPort)
     {
         ctx_ = new zmq::context_t(1);
@@ -65,7 +67,7 @@ class client_base
 
         run();
     }
-
+#endif
     ~client_base()
     {
         stop();
@@ -139,6 +141,19 @@ class client_base
     }
     bool run()
     {
+        ctx_ = new zmq::context_t(1);
+        if (!ctx_)
+        {
+            logger->error(ZMQ_LOG, "\[CLIENT\] new context fail!\n");
+            return false;
+        }
+        client_socket_ = new zmq::socket_t(*ctx_, ZMQ_DEALER);
+        if (!client_socket_)
+        {
+            logger->error(ZMQ_LOG, "\[CLIENT\] new socket fail!\n");
+            return false;
+        }
+
         auto routine_fun = std::bind(&client_base::start, this);
         routine_thread = new std::thread(routine_fun);
         routine_thread->detach();
@@ -155,6 +170,7 @@ class client_base
             logger->error(ZMQ_LOG, "\[CLIENT\] start monitor socket fail!\n");
             return false;
         }
+        return ret;
     }
 
     void set_monitor_cb(MONITOR_CB_FUNC cb)
@@ -295,8 +311,8 @@ class client_base
             int iRcvSendTimeout = 5000; // millsecond Make it configurable
             client_socket_->setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
             client_socket_->setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
-            int linger = 0;
-            client_socket_->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+            //int linger = 0;
+            //client_socket_->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
         }
         catch (std::exception &e)
         {
@@ -339,10 +355,11 @@ class client_base
                 }
                 catch (std::exception &e)
                 {
-                    logger->warn(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
+                    logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
                 }
                 client_socket_->close();
                 ctx_->close();
+
                 return true;
             }
             try
@@ -353,15 +370,6 @@ class client_base
                 if (should_stop)
                 {
                     logger->warn(ZMQ_LOG, "\[CLIENT\] client thread will exit !");
-                    try
-                    {
-                        int linger = 0;
-                        client_socket_->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
-                    }
-                    catch (std::exception &e)
-                    {
-                        logger->warn(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
-                    }
                     client_socket_->close();
                     ctx_->close();
                     return true;
