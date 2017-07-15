@@ -17,6 +17,7 @@ this file contains the util functions
 #define INTERVAL_MAX 32000      //  After exponential backoff
 
 typedef std::shared_ptr<zmsg> zmsg_ptr;
+
 //typedef std::mt19937 0MQ_RNG;
 typedef void USR_CB_FUNC(const char *, size_t, void *);
 typedef void SERVER_CB_FUNC(const char *, size_t, void *);
@@ -32,6 +33,7 @@ typedef std::function<void(const char *file, int line, const char *func, Logger:
 typedef std::lock_guard<std::recursive_mutex> M_GUARD;
 typedef std::recursive_mutex M_RMUTEX;
 typedef std::mutex M_MUTEX;
+
 
 typedef struct
 {

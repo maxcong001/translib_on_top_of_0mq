@@ -84,7 +84,7 @@ void dealer_router_router_dealer_example()
 		// start some clients
 		std::vector<client_base *> client_vector;
 		// should not be larger than 15
-		for (int num = 0; num < 15; num++)
+		for (int num = 0; num < 10; num++)
 		{
 			client_vector.emplace_back(new client_base());
 		}
@@ -133,9 +133,9 @@ void dealer_router_router_dealer_example()
 		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 		/************send message ************/
-		for (int time = 0; time < 200; time++)
+		for (int time = 0; time < 10; time++)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			for (int i = 0; i < 100; i++)
 			{
 				for (auto tmp_client : client_vector)
@@ -191,7 +191,7 @@ void dealer_router_example()
 		void *user_data = (void *)0;
 		// start some clients
 		std::vector<client_base *> client_vector;
-		for (int num = 0; num < 20; num++)
+		for (int num = 0; num < 10; num++)
 		{
 			client_vector.emplace_back(new client_base());
 		}
@@ -203,9 +203,9 @@ void dealer_router_example()
 			tmp_client->run();
 		}
 
-		for (int time = 0; time < 100; time++)
+		for (int time = 0; time < 10; time++)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			for (int i = 0; i < 100; i++)
 			{
 				for (auto tmp_client : client_vector)

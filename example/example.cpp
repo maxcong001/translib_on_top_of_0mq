@@ -24,7 +24,7 @@ void server_cb_001(const char *data, size_t len, void *ID)
         << " total message: " << message_count++ << std::endl;
         */
         
-    std::cout << std::dec << " \[SERVER\] total message: " << message_count++ << " ID is " << (long)ID << std::endl;
+    //std::cout << std::dec << " \[SERVER\] total message: " << message_count++ << " ID is " << (long)ID << std::endl;
     st1.send(data, len, ID);
 }
 void worker_cb_001(const char *data, size_t len, void *ID)
@@ -38,13 +38,12 @@ void dealer_router_example();
 void dealer_router_router_dealer_example();
 int main(void)
 {
-    LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
+    LogManager::getLogger(logging_cb)->setLevel(Logger::ALL);//WARN); //ALL);
 
-    //dealer_router_router_dealer_example();
+   // dealer_router_router_dealer_example();
     dealer_router_example();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     logger->error(ZMQ_LOG, " ************   exit example ************\n");
-
     return 0;
 }
 void dealer_router_router_dealer_example()
@@ -102,7 +101,7 @@ void dealer_router_router_dealer_example()
         for (int time = 0; time < 10; time++)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 10; i++)
             {
                 for (auto tmp_client : client_vector)
                 {
@@ -124,6 +123,7 @@ void dealer_router_router_dealer_example()
         bk1.stop();
     }
 }
+
 
 void dealer_router_example()
 {
@@ -153,7 +153,7 @@ void dealer_router_example()
         void *user_data = (void *)28;
         // start some clients
         std::vector<client_base *> client_vector;
-        for (int num = 0; num < 20; num++)
+        for (int num = 0; num < 2; num++)
         {
             client_vector.emplace_back(new client_base());
         }
@@ -167,8 +167,8 @@ void dealer_router_example()
 
         for (int time = 0; time < 10; time++)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            for (int i = 0; i < 100; i++)
+            //std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            for (int i = 0; i < 10; i++)
             {
                 for (auto tmp_client : client_vector)
                 {
@@ -176,6 +176,8 @@ void dealer_router_example()
                 }
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        logger->error(ZMQ_LOG, " ************   exit DEALER <->ROUTER MODE************\n");
+        //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
     }
 }
