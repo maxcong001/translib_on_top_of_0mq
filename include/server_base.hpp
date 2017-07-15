@@ -110,7 +110,6 @@ class server_base
             zmsg::ustring tmp_ustr((unsigned char *)msg, len);
             (iter->second)->push_back(tmp_ustr);
             {
-
                 server_q.emplace(iter->second);
             }
             Id2MsgMap.erase(iter);
@@ -202,7 +201,7 @@ class server_base
             server_socket_.setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
             server_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
             int linger = 0;
-            server_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+            //server_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
         }
         catch (std::exception &e)
         {
@@ -303,7 +302,7 @@ class server_base
                                 //(server_q.front()).use_count();
                                 (server_q.front())->send(server_socket_);
 
-                                logger->error(ZMQ_LOG, "\[SERVER\] server_q size is %d, reference count is %d\n", server_q.size(), (server_q.front()).use_count());
+                                //logger->error(ZMQ_LOG, "\[SERVER\] server_q size is %d, reference count is %d\n", server_q.size(), (server_q.front()).use_count());
                                 // make sure the the reference count is 0
                                 //(server_q.front()).use_count();
 

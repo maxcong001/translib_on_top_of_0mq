@@ -23,11 +23,14 @@ void server_cb_001(const char *data, size_t len, void *ID)
         << std::dec << "receive message form client : "
         << " total message: " << message_count++ << std::endl;
         */
+        
+    std::cout << std::dec << " \[SERVER\] total message: " << message_count++ << " ID is " << (long)ID << std::endl;
     st1.send(data, len, ID);
 }
 void worker_cb_001(const char *data, size_t len, void *ID)
 {
-    std::cout << std::dec << "receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+    //std::cout << std::dec << "receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
+    std::cout << std::dec << " total message: " << message_count++ << " ID is " << (long)ID << std::endl;
     wk1.send(data, len, ID);
 }
 
@@ -37,10 +40,8 @@ int main(void)
 {
     LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
 
-  
-
-    dealer_router_router_dealer_example();
-      dealer_router_example();
+    //dealer_router_router_dealer_example();
+    dealer_router_example();
     std::this_thread::sleep_for(std::chrono::milliseconds(10000));
     logger->error(ZMQ_LOG, " ************   exit example ************\n");
 

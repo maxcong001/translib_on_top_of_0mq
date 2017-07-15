@@ -685,10 +685,11 @@ class socket_t
         if (ptr == NULL)
             throw error_t();
     }
-
+    // to do, just change the following member public
+public:
     void *ptr;
     void *ctxptr;
-
+private:
     socket_t(const socket_t &) ZMQ_DELETED_FUNCTION;
     void operator=(const socket_t &) ZMQ_DELETED_FUNCTION;
 };

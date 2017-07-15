@@ -17,9 +17,10 @@ class client_base
     // start the 0MQ contex with 1 thread and max 1023 socket
     // you need to set IPPort info and then call run() when before
     client_base()
-        : ctx_(1),
-          client_socket_(ctx_, ZMQ_DEALER)
     {
+        client_socket_ = NULL;
+        ctx_ = NULL;
+
         // set random monitor path
         monitor_path.clear();
         if (monitor_path.empty())
@@ -40,9 +41,12 @@ class client_base
         protocol = "tcp://";
         IP_and_port_dest = "127.0.0.1:5561";
     }
-    client_base(std::string IPPort) : ctx_(1),
-                                      client_socket_(ctx_, ZMQ_DEALER)
+#if 0
+    client_base(std::string IPPort)
     {
+        ctx_ = new zmq::context_t(1);
+
+        client_socket_ = new zmq::socket_t(*ctx_, ZMQ_DEALER);
         // set random monitor path
         if (monitor_path.empty())
         {
@@ -63,7 +67,7 @@ class client_base
 
         run();
     }
-
+#endif
     ~client_base()
     {
         stop();
@@ -137,13 +141,25 @@ class client_base
     }
     bool run()
     {
+        ctx_ = new zmq::context_t(1);
+        if (!ctx_)
+        {
+            logger->error(ZMQ_LOG, "\[CLIENT\] new context fail!\n");
+            return false;
+        }
+        client_socket_ = new zmq::socket_t(*ctx_, ZMQ_DEALER);
+        if (!client_socket_)
+        {
+            logger->error(ZMQ_LOG, "\[CLIENT\] new socket fail!\n");
+            return false;
+        }
+
         auto routine_fun = std::bind(&client_base::start, this);
         routine_thread = new std::thread(routine_fun);
         routine_thread->detach();
         auto monitor_fun = std::bind(&client_base::monitor_task, this);
         monitor_thread = new std::thread(monitor_fun);
         monitor_thread->detach();
-
         bool ret = monitor_this_socket();
         if (ret)
         {
@@ -154,6 +170,7 @@ class client_base
             logger->error(ZMQ_LOG, "\[CLIENT\] start monitor socket fail!\n");
             return false;
         }
+        return ret;
     }
 
     void set_monitor_cb(MONITOR_CB_FUNC cb)
@@ -170,6 +187,14 @@ class client_base
 
     bool stop()
     {
+        {
+            std::lock_guard<M_MUTEX> glock(client_mutex);
+            while (queue_s.size())
+            {
+                queue_s.pop();
+            }
+        }
+
         should_exit_monitor_task = true;
         if (monitor_thread)
         {
@@ -218,7 +243,7 @@ class client_base
   private:
     bool monitor_task()
     {
-        void *client_mon = zmq_socket((void *)ctx_, ZMQ_PAIR);
+        void *client_mon = zmq_socket(client_socket_->ctxptr, ZMQ_PAIR);
         if (!client_mon)
         {
             logger->error(ZMQ_LOG, "\[CLIENT\] start PAIR socket fail!\n");
@@ -267,9 +292,11 @@ class client_base
             }
         }
     }
+
     bool monitor_this_socket()
     {
-        int rc = zmq_socket_monitor(client_socket_, monitor_path.c_str(), ZMQ_EVENT_ALL);
+        int rc = zmq_socket_monitor(client_socket_->ptr, monitor_path.c_str(), ZMQ_EVENT_ALL);
+        logger->debug(ZMQ_LOG, "\[CLIENT\] rc is : %d\n", rc);
         return ((rc == 0) ? true : false);
     }
 
@@ -279,13 +306,13 @@ class client_base
         {
             // enable IPV6, we had already make sure that we are using TCP then we can set this option
             int enable_v6 = 1;
-            client_socket_.setsockopt(ZMQ_IPV6, &enable_v6, sizeof(enable_v6));
+            client_socket_->setsockopt(ZMQ_IPV6, &enable_v6, sizeof(enable_v6));
             /*Change the ZMQ_TIMEOUT?for ZMQ_RCVTIMEO and ZMQ_SNDTIMEO.*/
             int iRcvSendTimeout = 5000; // millsecond Make it configurable
-            client_socket_.setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
-            client_socket_.setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
-            int linger = 0;
-            client_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+            client_socket_->setsockopt(ZMQ_RCVTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+            client_socket_->setsockopt(ZMQ_SNDTIMEO, &iRcvSendTimeout, sizeof(iRcvSendTimeout));
+            //int linger = 0;
+            //client_socket_->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
         }
         catch (std::exception &e)
         {
@@ -306,7 +333,7 @@ class client_base
                 IPPort += protocol + IP_and_port_source + ";" + IP_and_port_dest;
             }
             logger->debug(ZMQ_LOG, "\[CLIENT\] connect to : %s\n", IPPort.c_str());
-            client_socket_.connect(IPPort);
+            client_socket_->connect(IPPort);
         }
         catch (std::exception &e)
         {
@@ -315,35 +342,45 @@ class client_base
         }
 
         //  Initialize poll set
-        zmq::pollitem_t items[] = {{client_socket_, 0, ZMQ_POLLIN, 0}};
+        zmq::pollitem_t items[] = {{*client_socket_, 0, ZMQ_POLLIN, 0}};
         while (1)
         {
             if (should_stop)
             {
                 logger->warn(ZMQ_LOG, "\[CLIENT\] client thread will exit !");
-                /*
                 try
                 {
                     int linger = 0;
-                    client_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+                    client_socket_->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
                 }
                 catch (std::exception &e)
                 {
                     logger->error(ZMQ_LOG, "\[CLIENT\] set ZMQ_LINGER return fail\n");
                 }
-*/
+                client_socket_->close();
+                ctx_->close();
+
                 return true;
             }
             try
             {
                 zmq::poll(items, 1, EPOLL_TIMEOUT);
+                // note this is a work around
+                // will find a new way to fix the multi-thread issue
+                if (should_stop)
+                {
+                    logger->warn(ZMQ_LOG, "\[CLIENT\] client thread will exit !");
+                    client_socket_->close();
+                    ctx_->close();
+                    return true;
+                }
                 if (items[0].revents & ZMQ_POLLIN)
                 {
                     std::string tmp_str;
                     //std::string tmp_data_and_cb;
                     {
 
-                        zmsg msg(client_socket_);
+                        zmsg msg(*client_socket_);
                         logger->debug(ZMQ_LOG, "\[CLIENT\] rceive message with %d parts\n", msg.parts());
                         tmp_str = msg.get_body();
                     }
@@ -381,7 +418,7 @@ class client_base
                             // check size again under the lock
                             while (queue_s.size())
                             {
-                                (queue_s.front())->send(client_socket_);
+                                (queue_s.front())->send(*client_socket_);
                                 (queue_s.front()).reset();
                                 queue_s.pop();
                             }
@@ -396,16 +433,18 @@ class client_base
                 else
                 // poll timeout, now it is the time we send message.
                 {
-                    if (queue_s.size())
+                    if (queue_s.size() > 0)
                     {
+
                         try
                         {
                             std::lock_guard<M_MUTEX> glock(client_mutex);
-                            logger->debug(ZMQ_LOG, "\[CLIENT\] poll timeout, and there is %d message, now send message\n", queue_s.size());
+                            // logger->debug(ZMQ_LOG, "\[CLIENT\] poll timeout, and there is %d message, now send message\n", queue_s.size());
                             // check size again under the lock
-                            while (queue_s.size())
+                            while (queue_s.size() > 0)
                             {
-                                (queue_s.front())->send(client_socket_);
+                                // logger->debug(ZMQ_LOG, "\[CLIENT\] queue_s.size() is %d, (queue_s.front()) is %d\n", queue_s.size(), (queue_s.front()).use_count());
+                                (queue_s.front())->send(*client_socket_);
                                 (queue_s.front()).reset();
                                 queue_s.pop();
                             }
@@ -434,8 +473,8 @@ class client_base
     std::string protocol;
     std::unordered_set<void *> sand_box;
     USR_CB_FUNC *cb_;
-    zmq::context_t ctx_;
-    zmq::socket_t client_socket_;
+    zmq::context_t *ctx_;
+    zmq::socket_t *client_socket_;
     std::thread *routine_thread;
     std::thread *monitor_thread;
 
