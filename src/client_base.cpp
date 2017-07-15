@@ -232,17 +232,14 @@ bool client_base::start()
                 // why two  queue_s_client->size()
                 // avoid add lock. only queue_s_client->size() is not 0, then we add lock.
                 // to do: how many message to send? or send all the message(we are async, that is fine)
-
                 if (tmp_queue_s_client->size())
                 {
                     try
                     {
-
                         std::lock_guard<M_MUTEX> glock(*tmp_client_mutex);
 
                         logger->debug(ZMQ_LOG, "\[CLIENT\] there is %d message to send\n", tmp_queue_s_client->size());
                         // check size again under the lock
-
                         // there maybe context switch issue, to do
                         while (tmp_queue_s_client->size())
                         {
@@ -261,14 +258,11 @@ bool client_base::start()
             else
             // poll timeout, now it is the time we send message.
             {
-
                 if (tmp_queue_s_client->size() > 0)
                 {
                     try
                     {
-
                         std::lock_guard<M_MUTEX> glock(*tmp_client_mutex);
-
                         // logger->debug(ZMQ_LOG, "\[CLIENT\] poll timeout, and there is %d message, now send message\n", tmp_queue_s_client->size());
                         // check size again under the lock
                         while (tmp_queue_s_client->size() > 0)
@@ -320,11 +314,9 @@ bool client_base::monitor_task()
     try
     {
         int rc = zmq_connect(client_mon, monitor_path.c_str());
-
         //rc should be 0 if success
         if (rc)
         {
-
             logger->error(ZMQ_LOG, "\[CLIENT\] connect to nomitor pair fail!\n");
             return false;
         }

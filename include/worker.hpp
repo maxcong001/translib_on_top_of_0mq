@@ -472,16 +472,14 @@ class worker_base
     std::string IP_and_port_source;
     zmq::context_t *ctx_;
     zmq::socket_t *worker_socket_;
-
     std::atomic<long> uniqueID_atomic;
-    std::map<void *, zmsg_ptr> Id2MsgMap;
-    //std::condition_variable monitor_cond;
-    //std::mutex monitor_mutex;
-    M_MUTEX worker_mutex;
+
     std::thread *routine_thread;
     std::thread *monitor_thread;
     bool should_exit_monitor_task;
     bool should_exit_routine_task;
-    
+
     std::queue<zmsg_ptr> worker_q;
+    std::map<void *, zmsg_ptr> Id2MsgMap;
+    M_MUTEX worker_mutex;
 };

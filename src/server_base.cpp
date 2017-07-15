@@ -9,7 +9,6 @@ bool server_base::run()
     server_q = tmp_queue;
 
     std::shared_ptr<std::mutex> tmp_server_mutex(new std::mutex);
-
     server_mutex = tmp_server_mutex;
 
     ctx_ = new zmq::context_t(1);
@@ -18,6 +17,7 @@ bool server_base::run()
         logger->error(ZMQ_LOG, "\[SERVER\] new context fail!\n");
         return false;
     }
+
     server_socket_ = new zmq::socket_t(*ctx_, ZMQ_ROUTER);
     if (!server_socket_)
     {
@@ -28,9 +28,11 @@ bool server_base::run()
     auto routine_fun = std::bind(&server_base::start, this);
     routine_thread = new std::thread(routine_fun);
     routine_thread->detach();
+
     auto monitor_fun = std::bind(&server_base::monitor_task, this);
     monitor_thread = new std::thread(monitor_fun);
     monitor_thread->detach();
+
     // start monitor socket
     bool ret = monitor_this_socket();
     if (ret)
@@ -44,10 +46,10 @@ bool server_base::run()
     }
     return ret;
 }
+
 // if return 0, that means send fail, please send again;
 size_t server_base::send(const char *msg, size_t len, void *ID)
 {
-
     std::lock_guard<M_MUTEX> glock(*server_mutex);
 
     auto iter = Id2MsgMap_server->find(ID);
@@ -68,6 +70,7 @@ size_t server_base::send(const char *msg, size_t len, void *ID)
     }
     return len;
 }
+
 bool server_base::monitor_task()
 {
     void *server_mon = zmq_socket(server_socket_->ctxptr, ZMQ_PAIR);
@@ -76,8 +79,8 @@ bool server_base::monitor_task()
         logger->error(ZMQ_LOG, "\[SERVER\] get 0MQ socket fail\n");
         return false;
     }
-    int rc = zmq_connect(server_mon, monitor_path.c_str());
 
+    int rc = zmq_connect(server_mon, monitor_path.c_str());
     //rc should be 0 if success
     if (rc)
     {
@@ -100,13 +103,13 @@ bool server_base::monitor_task()
             logger->error(ZMQ_LOG, "\[SERVER\] get monitor event fail\n");
             //return false;
         }
-
         if (monitor_cb)
         {
             monitor_cb(event, value, address);
         }
     }
 }
+
 bool server_base::start()
 {
     zmq::socket_t *tmp_socket = server_socket_;
@@ -199,8 +202,6 @@ bool server_base::start()
 
             if (items[0].revents & ZMQ_POLLIN)
             {
-                // this is for test, delete it later
-                //sleep(5);
 
                 zmsg_ptr msg(new zmsg(*tmp_socket));
                 std::string data = msg->get_body();
@@ -211,7 +212,6 @@ bool server_base::start()
                 }
                 void *ID = getUniqueID();
                 {
- 
                     std::lock_guard<M_MUTEX> glock(*tmp_server_mutex_);
                     if (!tmp_Id2MsgMap_server.use_count())
                     {
@@ -238,21 +238,16 @@ bool server_base::start()
                 {
                     try
                     {
-   
                         std::lock_guard<M_MUTEX> glock(*tmp_server_mutex_);
                         logger->debug(ZMQ_LOG, "\[SERVER\] there is %d message, now send message\n", tmp_server_q->size());
                         // check size again under the lock
                         while (tmp_server_q->size())
                         {
-                            //(tmp_server_q->front()).use_count();
                             (tmp_server_q->front())->send(*tmp_socket);
 
                             //logger->error(ZMQ_LOG, "\[SERVER\] tmp_server_q size is %d, reference count is %d\n", tmp_server_q->size(), (tmp_server_q->front()).use_count());
                             // make sure the the reference count is 0
-                            //(tmp_server_q->front()).use_count();
-
-                            (tmp_server_q->front())
-                                .reset();
+                            (tmp_server_q->front()).reset();
                             tmp_server_q->pop();
                         }
                     }
@@ -270,7 +265,6 @@ bool server_base::start()
                 {
                     try
                     {
-          
                         std::lock_guard<M_MUTEX> glock(*tmp_server_mutex_);
                         logger->debug(ZMQ_LOG, "\[SERVER\] poll timeout, and there is %d message, now send message\n", tmp_server_q->size());
                         // check size again under the lock
