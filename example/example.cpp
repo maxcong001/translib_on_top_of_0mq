@@ -38,9 +38,8 @@ void dealer_router_example();
 void dealer_router_router_dealer_example();
 int main(void)
 {
-    LogManager::getLogger(logging_cb)->setLevel(Logger::ALL);//WARN); //ALL);
-
-   // dealer_router_router_dealer_example();
+    LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
+    dealer_router_router_dealer_example();
     dealer_router_example();
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     logger->error(ZMQ_LOG, " ************   exit example ************\n");
@@ -62,12 +61,12 @@ void dealer_router_router_dealer_example()
             buffer[i] = 'a';
         }
         //test if binary safe
-        //buffer[10] = 0;
+        //buffer[10] = 0;;
         std::string test_str(buffer, MAX_LEN);
         void *user_data = (void *)28;
         // start some clients
         std::vector<client_base *> client_vector;
-        for (int num = 0; num < 5; num++)
+        for (int num = 0; num < 1; num++)
         {
             client_vector.emplace_back(new client_base());
         }
@@ -110,7 +109,7 @@ void dealer_router_router_dealer_example()
             }
         }
         logger->error(ZMQ_LOG, " ************   exit DEALER <->(ROUTER<->ROUTER)<->DEALER MODE************\n");
-        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         /************clean up ************/
         for (auto tmp_client : client_vector)
         {

@@ -107,6 +107,7 @@ size_t client_base::send(void *usr_data, USR_CB_FUNC cb, char *msg, size_t len)
             return 0;
         }
         queue_s_client->emplace(messsag);
+        //logger->debug(ZMQ_LOG, "\[CLIENT\] size of queue is %d!\n", queue_s_client->size());
     }
 
     // note: return len here
@@ -231,7 +232,6 @@ bool client_base::start()
                 std::string tmp_str;
                 //std::string tmp_data_and_cb;
                 {
-
                     zmsg msg(*tmp_socket);
                     logger->debug(ZMQ_LOG, "\[CLIENT\] rceive message with %d parts\n", msg.parts());
                     tmp_str = msg.get_body();
@@ -320,7 +320,7 @@ bool client_base::start()
                         }
                         // logger->debug(ZMQ_LOG, "\[CLIENT\] poll timeout, and there is %d message, now send message\n", queue_s_client->size());
                         // check size again under the lock
-                        while ((!queue_s_client) && queue_s_client->size() > 0)
+                        while ((queue_s_client) && queue_s_client->size() > 0)
                         {
                             // logger->debug(ZMQ_LOG, "\[CLIENT\] queue_s_client->size() is %d, (queue_s_client->front()) is %d\n", queue_s_client->size(), (queue_s_client->front()).use_count());
                             (queue_s_client->front())->send(*tmp_socket);
