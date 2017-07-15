@@ -12,6 +12,7 @@
 #include <memory>
 #include <util.hpp>
 #include <unistd.h>
+#include <queue>
 
 class broker_base
 {
@@ -121,7 +122,7 @@ class broker_base
             logger->error(ZMQ_LOG, "\[BROKER\] backend fail, IPPort is %s", (backend_protocol + backend_IPPort).c_str());
             return false;
         }
-        
+
         //  Send out heartbeats at regular intervals
         int64_t heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
         while (1)
@@ -420,23 +421,21 @@ class broker_base
     }
 
   private:
-    zmq::context_t ctx_;
-    zmq::socket_t frontend_socket_;
-    zmq::socket_t backend_socket_;
+    bool should_return;
+
     std::string frontend_IPPort;
     std::string backend_IPPort;
     std::string frontend_protocol;
     std::string backend_protocol;
-    // for queue_worker
-    //  Queue of available workers
-    std::vector<worker_t> queue_worker;
 
-    //M_MUTEX frontend_mutex;
-    //M_MUTEX backend_mutex;
     M_MUTEX broker_mutex;
 
     std::queue<zmsg_ptr> front_end_q_broker;
     std::queue<zmsg_ptr> back_end_q_broker;
 
-    bool should_return;
+    std::vector<worker_t> queue_worker;
+
+    zmq::context_t ctx_;
+    zmq::socket_t frontend_socket_;
+    zmq::socket_t backend_socket_;
 };

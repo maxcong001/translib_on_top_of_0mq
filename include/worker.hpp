@@ -13,6 +13,7 @@
 #include <util.hpp>
 // for test, delete later
 #include <unistd.h>
+#include <queue>
 
 class worker_base
 {
@@ -61,6 +62,13 @@ class worker_base
 
     bool run()
     {
+
+        std::shared_ptr<std::queue<zmsg_ptr>> worker_q_(new std::queue<zmsg_ptr>());
+        worker_q = worker_q_;
+        std::shared_ptr<std::map<void *, zmsg_ptr>> Id2MsgMap_(new std::map<void *, zmsg_ptr>());
+        Id2MsgMap = Id2MsgMap_;
+        std::shared_ptr<std::mutex> worker_mutex_(new std::mutex());
+        worker_mutex = worker_mutex_;
 
         ctx_ = new zmq::context_t(1);
         if (!ctx_)
@@ -131,18 +139,18 @@ class worker_base
 
     size_t send(const char *msg, size_t len, void *ID)
     {
-        auto iter = Id2MsgMap.find(ID);
-        if (iter != Id2MsgMap.end())
+        auto iter = Id2MsgMap->find(ID);
+        if (iter != Id2MsgMap->end())
         {
             zmsg::ustring tmp_ustr((unsigned char *)msg, len);
             (iter->second)->push_back(tmp_ustr);
             {
-                std::lock_guard<M_MUTEX> glock(worker_mutex);
+                std::lock_guard<M_MUTEX> glock(*worker_mutex);
                 //note
-                worker_q.emplace(iter->second);
-                //worker_q.push(iter->second);
+                worker_q->emplace(iter->second);
+                //worker_q->push(iter->second);
             }
-            Id2MsgMap.erase(iter);
+            Id2MsgMap->erase(iter);
         }
         else
         {
@@ -168,6 +176,7 @@ class worker_base
   private:
     bool monitor_task()
     {
+        MONITOR_CB_FUNC *tmp_monitor_cb = monitor_cb;
         void *WORKER_mon = zmq_socket(worker_socket_->ctxptr, ZMQ_PAIR);
         if (!WORKER_mon)
         {
@@ -196,7 +205,6 @@ class worker_base
             if (should_exit_monitor_task)
             {
                 zmq_close(WORKER_mon);
-
                 logger->warn(ZMQ_LOG, "\[WORKER\] will exit worker monitor task\n");
                 return true;
             }
@@ -208,9 +216,9 @@ class worker_base
                 logger->warn(ZMQ_LOG, "\[WORKER\] get monitor event fail\n");
                 //return false;
             }
-            if (monitor_cb)
+            if (tmp_monitor_cb)
             {
-                monitor_cb(event, value, address);
+                tmp_monitor_cb(event, value, address);
             }
         }
     }
@@ -230,6 +238,7 @@ class worker_base
     // ph1 mainly set the connection option and connect to the borker.
     bool start_ph1()
     {
+
         try
         {
             // enable IPV6, we had already make sure that we are using TCP then we can set this option
@@ -278,11 +287,16 @@ class worker_base
     }
     bool start()
     {
+        std::shared_ptr<std::queue<zmsg_ptr>> tmp_worker_q = worker_q;
+        std::shared_ptr<std::map<void *, zmsg_ptr>> tmp_Id2MsgMap = Id2MsgMap;
+        std::shared_ptr<std::mutex> tmp_worker_mutex = worker_mutex;
         if (!start_ph1())
         {
             return false;
         }
+        WORKER_CB_FUNC *tmp_cb = cb_;
         zmq::socket_t *tmp_worker = worker_socket_;
+        zmq::context_t *tmp_ctx = ctx_;
         //  Send out heartbeats at regular intervals
         int64_t heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
         size_t liveness = HEARTBEAT_LIVENESS;
@@ -305,7 +319,7 @@ class worker_base
                 }
 
                 tmp_worker->close();
-                ctx_->close();
+                tmp_ctx->close();
 
                 logger->warn(ZMQ_LOG, "\[WORKER\] worker will exit \n");
                 return true;
@@ -327,7 +341,7 @@ class worker_base
                     }
 
                     tmp_worker->close();
-                    ctx_->close();
+                    tmp_ctx->close();
 
                     logger->warn(ZMQ_LOG, "\[WORKER\] worker will exit \n");
                     return true;
@@ -348,12 +362,12 @@ class worker_base
                             continue;
                         }
                         void *ID = getUniqueID();
-                        Id2MsgMap.emplace(ID, msg);
+                        tmp_Id2MsgMap->emplace(ID, msg);
                         //std::cout << "receive message form client" << std::endl;
                         //msg.dump();
-                        if (cb_)
+                        if (tmp_cb)
                         {
-                            cb_(data.c_str(), data.size(), ID);
+                            tmp_cb(data.c_str(), data.size(), ID);
                         }
                         else
                         {
@@ -374,20 +388,20 @@ class worker_base
                     }
                     interval = INTERVAL_INIT;
 
-                    if (worker_q.size())
+                    if (tmp_worker_q->size())
                     {
                         try
                         {
-                            std::lock_guard<M_MUTEX> glock(worker_mutex);
-                            logger->debug(ZMQ_LOG, "\[WORKER\] there is %d message, now send message\n", worker_q.size());
+                            std::lock_guard<M_MUTEX> glock(*tmp_worker_mutex);
+                            logger->debug(ZMQ_LOG, "\[WORKER\] there is %d message, now send message\n", tmp_worker_q->size());
                             // check size again under the lock
-                            while (worker_q.size())
+                            while (tmp_worker_q->size())
                             {
-                                (worker_q.front())->send(*worker_socket_);
+                                (tmp_worker_q->front())->send(*worker_socket_);
                                 // make sure the the reference count is 0
                                 // note : delete the following code ???????
-                                (worker_q.front()).reset();
-                                worker_q.pop();
+                                (tmp_worker_q->front()).reset();
+                                tmp_worker_q->pop();
                             }
                         }
                         catch (std::exception &e)
@@ -411,7 +425,7 @@ class worker_base
                     try
                     {
                         worker_socket_->close();
-                        tmp_worker = new zmq::socket_t(*ctx_, ZMQ_DEALER);
+                        tmp_worker = new zmq::socket_t(*tmp_ctx, ZMQ_DEALER);
                         //worker = s_worker_socket(context);
                         worker_socket_ = tmp_worker;
                         if (!start_ph1())
@@ -433,19 +447,19 @@ class worker_base
                     logger->debug(ZMQ_LOG, "\[WORKER\]  (%s) worker heartbeat\n", identity_.c_str());
                     s_send(*worker_socket_, "HEARTBEAT");
                 }
-                if (worker_q.size())
+                if (tmp_worker_q->size())
                 {
                     try
                     {
-                        std::lock_guard<M_MUTEX> glock(worker_mutex);
-                        logger->debug(ZMQ_LOG, "\[WORKER\] there is %d message, now send message\n", worker_q.size());
+                        std::lock_guard<M_MUTEX> glock(*tmp_worker_mutex);
+                        logger->debug(ZMQ_LOG, "\[WORKER\] there is %d message, now send message\n", tmp_worker_q->size());
                         // check size again under the lock
-                        while (worker_q.size())
+                        while (tmp_worker_q->size())
                         {
-                            (worker_q.front())->send(*worker_socket_);
+                            (tmp_worker_q->front())->send(*worker_socket_);
                             // make sure the the reference count is 0
-                            (worker_q.front()).reset();
-                            worker_q.pop();
+                            (tmp_worker_q->front()).reset();
+                            tmp_worker_q->pop();
                         }
                     }
                     catch (std::exception &e)
@@ -465,13 +479,10 @@ class worker_base
   private:
     std::string identity_;
     std::string monitor_path;
-    WORKER_CB_FUNC *cb_;
-    MONITOR_CB_FUNC *monitor_cb;
     std::string IP_and_port_dest;
     std::string protocol;
     std::string IP_and_port_source;
-    zmq::context_t *ctx_;
-    zmq::socket_t *worker_socket_;
+
     std::atomic<long> uniqueID_atomic;
 
     std::thread *routine_thread;
@@ -479,7 +490,13 @@ class worker_base
     bool should_exit_monitor_task;
     bool should_exit_routine_task;
 
-    std::queue<zmsg_ptr> worker_q;
-    std::map<void *, zmsg_ptr> Id2MsgMap;
-    M_MUTEX worker_mutex;
+    zmq::context_t *ctx_;
+    zmq::socket_t *worker_socket_;
+
+    WORKER_CB_FUNC *cb_;
+    MONITOR_CB_FUNC *monitor_cb;
+
+    std::shared_ptr<std::queue<zmsg_ptr>> worker_q;
+    std::shared_ptr<std::map<void *, zmsg_ptr>> Id2MsgMap;
+    std::shared_ptr<std::mutex> worker_mutex;
 };

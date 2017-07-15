@@ -87,14 +87,15 @@ class client_base
     std::string IP_and_port_source;
     std::string protocol;
 
-    USR_CB_FUNC *cb_;
-    zmq::context_t *ctx_;
-    zmq::socket_t *client_socket_;
     std::thread *routine_thread;
     std::thread *monitor_thread;
 
     bool should_stop;
     bool should_exit_monitor_task;
+
+    zmq::context_t *ctx_;
+    zmq::socket_t *client_socket_;
+
     MONITOR_CB_FUNC_CLIENT monitor_cb;
 
     std::shared_ptr<std::mutex> client_mutex;

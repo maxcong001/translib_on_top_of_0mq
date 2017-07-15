@@ -73,6 +73,8 @@ size_t server_base::send(const char *msg, size_t len, void *ID)
 
 bool server_base::monitor_task()
 {
+    MONITOR_CB_FUNC_CLIENT tmp_monitor_cb = monitor_cb;
+    
     void *server_mon = zmq_socket(server_socket_->ctxptr, ZMQ_PAIR);
     if (!server_mon)
     {
@@ -88,7 +90,7 @@ bool server_base::monitor_task()
         return false;
     }
     while (1)
-    {
+    {  
         if (should_exit_monitor_task)
         {
             zmq_close(server_mon);
@@ -103,15 +105,16 @@ bool server_base::monitor_task()
             logger->error(ZMQ_LOG, "\[SERVER\] get monitor event fail\n");
             //return false;
         }
-        if (monitor_cb)
+        if (tmp_monitor_cb)
         {
-            monitor_cb(event, value, address);
+            tmp_monitor_cb(event, value, address);
         }
     }
 }
 
 bool server_base::start()
 {
+    SERVER_CB_FUNC *tmp_cb = cb_;
     zmq::socket_t *tmp_socket = server_socket_;
     zmq::context_t *tmp_ctx = ctx_;
     std::shared_ptr<std::map<void *, zmsg_ptr>> tmp_Id2MsgMap_server = Id2MsgMap_server;
@@ -225,9 +228,9 @@ bool server_base::start()
                 //msg.dump();
                 // send back message to client, for test
                 //msg.send(tmp_socket);
-                if (cb_)
+                if (tmp_cb)
                 {
-                    cb_(data.c_str(), data.size(), ID);
+                    tmp_cb(data.c_str(), data.size(), ID);
                 }
                 else
                 {

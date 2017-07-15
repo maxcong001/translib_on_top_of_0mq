@@ -19,7 +19,6 @@ client_base::client_base()
         monitor_path = "inproc://" + ss.str();
     }
 
-    cb_ = NULL;
     routine_thread = NULL;
     monitor_thread = NULL;
     should_stop = false;
@@ -115,7 +114,6 @@ bool client_base::start()
     zmq::context_t *tmp_ctx = ctx_;
 
     std::shared_ptr<std::mutex> tmp_client_mutex = client_mutex;
-
     std::shared_ptr<std::queue<zmsg_ptr>> tmp_queue_s_client = queue_s_client;
 
     try
@@ -217,11 +215,11 @@ bool client_base::start()
                     logger->warn(ZMQ_LOG, "\[CLIENT\] Warning! the message is crrupted or someone is hacking us !!");
                     continue;
                 }
-                cb_ = (USR_CB_FUNC *)(usrdata_and_cb_p->cb);
+                USR_CB_FUNC *tmp_cb = (USR_CB_FUNC *)(usrdata_and_cb_p->cb);
 
-                if (cb_)
+                if (tmp_cb)
                 {
-                    cb_((char *)((usrdata_and_cb *)(tmp_str.c_str()) + 1), tmp_str.size() - sizeof(usrdata_and_cb), user_data);
+                    tmp_cb((char *)((usrdata_and_cb *)(tmp_str.c_str()) + 1), tmp_str.size() - sizeof(usrdata_and_cb), user_data);
                 }
                 else
                 {

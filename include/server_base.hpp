@@ -116,23 +116,24 @@ class server_base
 
   private:
     std::string monitor_path;
-    SERVER_CB_FUNC *cb_;
-    MONITOR_CB_FUNC *monitor_cb;
     std::string IP_and_port;
     std::string protocol;
-    zmq::context_t *ctx_;
-    zmq::socket_t *server_socket_;
+
     std::atomic<long> uniqueID_atomic;
 
     std::thread *routine_thread;
     std::thread *monitor_thread;
+
     bool should_exit_monitor_task;
     bool should_exit_routine_task;
 
-    //std::mutex *server_mutex;
+    zmq::context_t *ctx_;
+    zmq::socket_t *server_socket_;
+
+    SERVER_CB_FUNC *cb_;
+    MONITOR_CB_FUNC *monitor_cb;
+
     std::shared_ptr<std::mutex> server_mutex;
-    std::shared_ptr<std::map<void *, zmsg_ptr> > Id2MsgMap_server;
-    // std::map<void *, zmsg_ptr>* Id2MsgMap_server;
-    std::shared_ptr<std::queue<zmsg_ptr> > server_q;
-    //std::queue<zmsg_ptr> server_q;
+    std::shared_ptr<std::map<void *, zmsg_ptr>> Id2MsgMap_server;
+    std::shared_ptr<std::queue<zmsg_ptr>> server_q;
 };
