@@ -8,12 +8,10 @@ bool server_base::run()
     std::shared_ptr<std::queue<zmsg_ptr>> tmp_queue(new std::queue<zmsg_ptr>());
     server_q = tmp_queue;
 
-    server_mutex = new std::mutex();
-    if (!server_mutex)
-    {
-        logger->error(ZMQ_LOG, "\[SERVER\] new mutex fail!\n");
-        return false;
-    }
+    std::shared_ptr<std::mutex> tmp_server_mutex(new std::mutex);
+
+    server_mutex = tmp_server_mutex;
+
     ctx_ = new zmq::context_t(1);
     if (!ctx_)
     {
@@ -49,11 +47,7 @@ bool server_base::run()
 // if return 0, that means send fail, please send again;
 size_t server_base::send(const char *msg, size_t len, void *ID)
 {
-    if (!server_mutex)
-    {
-        logger->error(ZMQ_LOG, "\[SERVER\] mutex is invalid\n");
-        return 0;
-    }
+
     std::lock_guard<M_MUTEX> glock(*server_mutex);
 
     auto iter = Id2MsgMap_server->find(ID);
@@ -119,6 +113,7 @@ bool server_base::start()
     zmq::context_t *tmp_ctx = ctx_;
     std::shared_ptr<std::map<void *, zmsg_ptr>> tmp_Id2MsgMap_server = Id2MsgMap_server;
     std::shared_ptr<std::queue<zmsg_ptr>> tmp_server_q = server_q;
+    std::shared_ptr<std::mutex> tmp_server_mutex_ = server_mutex;
     //std::mutex* server_mutex;
     try
     {
@@ -216,12 +211,8 @@ bool server_base::start()
                 }
                 void *ID = getUniqueID();
                 {
-                    if (!server_mutex)
-                    {
-                        logger->error(ZMQ_LOG, "\[SERVER\] mutex is invalid\n");
-                        continue;
-                    }
-                    std::lock_guard<M_MUTEX> glock(*server_mutex);
+ 
+                    std::lock_guard<M_MUTEX> glock(*tmp_server_mutex_);
                     if (!tmp_Id2MsgMap_server.use_count())
                     {
                         logger->error(ZMQ_LOG, "\[SERVER\] invalid map!\n");
@@ -247,12 +238,8 @@ bool server_base::start()
                 {
                     try
                     {
-                        if (!server_mutex)
-                        {
-                            logger->error(ZMQ_LOG, "\[SERVER\] mutex is invalid\n");
-                            continue;
-                        }
-                        std::lock_guard<M_MUTEX> glock(*server_mutex);
+   
+                        std::lock_guard<M_MUTEX> glock(*tmp_server_mutex_);
                         logger->debug(ZMQ_LOG, "\[SERVER\] there is %d message, now send message\n", tmp_server_q->size());
                         // check size again under the lock
                         while (tmp_server_q->size())
@@ -283,12 +270,8 @@ bool server_base::start()
                 {
                     try
                     {
-                        if (!server_mutex)
-                        {
-                            logger->error(ZMQ_LOG, "\[SERVER\] mutex is invalid\n");
-                            continue;
-                        }
-                        std::lock_guard<M_MUTEX> glock(*server_mutex);
+          
+                        std::lock_guard<M_MUTEX> glock(*tmp_server_mutex_);
                         logger->debug(ZMQ_LOG, "\[SERVER\] poll timeout, and there is %d message, now send message\n", tmp_server_q->size());
                         // check size again under the lock
                         while (tmp_server_q->size())

@@ -482,5 +482,6 @@ class worker_base
     std::thread *monitor_thread;
     bool should_exit_monitor_task;
     bool should_exit_routine_task;
+    
     std::queue<zmsg_ptr> worker_q;
 };

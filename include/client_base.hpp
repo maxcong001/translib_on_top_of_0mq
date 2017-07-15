@@ -97,6 +97,6 @@ class client_base
     bool should_exit_monitor_task;
     MONITOR_CB_FUNC_CLIENT monitor_cb;
 
-    M_MUTEX* client_mutex;
-    std::queue<zmsg_ptr>* queue_s_client;
+    std::shared_ptr<std::mutex> client_mutex;
+    std::shared_ptr<std::queue<zmsg_ptr>> queue_s_client;
 };

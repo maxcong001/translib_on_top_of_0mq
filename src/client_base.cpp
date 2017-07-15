@@ -3,8 +3,7 @@
 std::unordered_set<void *> sand_box_client;
 client_base::client_base()
 {
-    client_mutex = NULL;
-    queue_s_client = NULL;
+
     client_socket_ = NULL;
     ctx_ = NULL;
 
@@ -30,18 +29,11 @@ client_base::client_base()
 }
 bool client_base::run()
 {
-    client_mutex = new std::mutex();
-    if (!client_mutex)
-    {
-        logger->error(ZMQ_LOG, "\[CLIENT\] new mutex fail\n");
-        return false;
-    }
-    queue_s_client = new std::queue<zmsg_ptr>();
-    if (!queue_s_client)
-    {
-        logger->error(ZMQ_LOG, "\[CLIENT\] new queue fail\n");
-        return false;
-    }
+    std::shared_ptr<std::mutex> tmp_mutex(new std::mutex());
+    client_mutex = tmp_mutex;
+
+    std::shared_ptr<std::queue<zmsg_ptr>> queue_s_client_tmp(new std::queue<zmsg_ptr>());
+    queue_s_client = queue_s_client_tmp;
 
     ctx_ = new zmq::context_t(1);
     if (!ctx_)
@@ -101,11 +93,7 @@ size_t client_base::send(void *usr_data, USR_CB_FUNC cb, char *msg, size_t len)
             logger->error(ZMQ_LOG, "\[CLIENT\] client_mutex is invalid!\n");
             return 0;
         }
-        if (!queue_s_client)
-        {
-            logger->error(ZMQ_LOG, "\[CLIENT\] queue is invalid!\n");
-            return 0;
-        }
+
         queue_s_client->emplace(messsag);
         //logger->debug(ZMQ_LOG, "\[CLIENT\] size of queue is %d!\n", queue_s_client->size());
     }
@@ -116,29 +104,8 @@ size_t client_base::send(void *usr_data, USR_CB_FUNC cb, char *msg, size_t len)
 
 bool client_base::stop()
 {
-    if (client_mutex)
-    {
-        delete client_mutex;
-        client_mutex = NULL;
-    }
-    if (queue_s_client)
-    {
-        delete queue_s_client;
-        queue_s_client = NULL;
-    }
-
     should_exit_monitor_task = true;
-    if (monitor_thread)
-    {
-        //monitor_thread->join();
-    }
-    // let the routine thread exit
     should_stop = true;
-    if (routine_thread)
-    {
-        //routine_thread->join();
-    }
-    // to do, just return true
 
     return true;
 }
@@ -146,6 +113,11 @@ bool client_base::start()
 {
     zmq::socket_t *tmp_socket = client_socket_;
     zmq::context_t *tmp_ctx = ctx_;
+
+    std::shared_ptr<std::mutex> tmp_client_mutex = client_mutex;
+
+    std::shared_ptr<std::queue<zmsg_ptr>> tmp_queue_s_client = queue_s_client;
+
     try
     {
         // enable IPV6, we had already make sure that we are using TCP then we can set this option
@@ -260,34 +232,23 @@ bool client_base::start()
                 // why two  queue_s_client->size()
                 // avoid add lock. only queue_s_client->size() is not 0, then we add lock.
                 // to do: how many message to send? or send all the message(we are async, that is fine)
-                if (!queue_s_client)
-                {
-                    logger->error(ZMQ_LOG, "\[CLIENT\] queue is invalid!\n");
-                    continue;
-                }
 
-                if (queue_s_client->size())
+                if (tmp_queue_s_client->size())
                 {
                     try
                     {
-                        if (client_mutex)
-                        {
-                            std::lock_guard<M_MUTEX> glock(*client_mutex);
-                        }
-                        else
-                        {
-                            logger->error(ZMQ_LOG, "\[CLIENT\] client_mutex is invalid!\n");
-                            continue;
-                        }
-                        logger->debug(ZMQ_LOG, "\[CLIENT\] there is %d message to send\n", queue_s_client->size());
+
+                        std::lock_guard<M_MUTEX> glock(*tmp_client_mutex);
+
+                        logger->debug(ZMQ_LOG, "\[CLIENT\] there is %d message to send\n", tmp_queue_s_client->size());
                         // check size again under the lock
 
                         // there maybe context switch issue, to do
-                        while ((!queue_s_client) && queue_s_client->size())
+                        while (tmp_queue_s_client->size())
                         {
-                            (queue_s_client->front())->send(*tmp_socket);
-                            (queue_s_client->front()).reset();
-                            queue_s_client->pop();
+                            (tmp_queue_s_client->front())->send(*tmp_socket);
+                            (tmp_queue_s_client->front()).reset();
+                            tmp_queue_s_client->pop();
                         }
                     }
                     catch (std::exception &e)
@@ -300,32 +261,22 @@ bool client_base::start()
             else
             // poll timeout, now it is the time we send message.
             {
-                if (!queue_s_client)
-                {
-                    logger->error(ZMQ_LOG, "\[CLIENT\] queue is invalid!\n");
-                    continue;
-                }
-                if (queue_s_client->size() > 0)
+
+                if (tmp_queue_s_client->size() > 0)
                 {
                     try
                     {
-                        if (client_mutex)
-                        {
-                            std::lock_guard<M_MUTEX> glock(*client_mutex);
-                        }
-                        else
-                        {
-                            logger->error(ZMQ_LOG, "\[CLIENT\] client_mutex is invalid!\n");
-                            continue;
-                        }
-                        // logger->debug(ZMQ_LOG, "\[CLIENT\] poll timeout, and there is %d message, now send message\n", queue_s_client->size());
+
+                        std::lock_guard<M_MUTEX> glock(*tmp_client_mutex);
+
+                        // logger->debug(ZMQ_LOG, "\[CLIENT\] poll timeout, and there is %d message, now send message\n", tmp_queue_s_client->size());
                         // check size again under the lock
-                        while ((queue_s_client) && queue_s_client->size() > 0)
+                        while (tmp_queue_s_client->size() > 0)
                         {
-                            // logger->debug(ZMQ_LOG, "\[CLIENT\] queue_s_client->size() is %d, (queue_s_client->front()) is %d\n", queue_s_client->size(), (queue_s_client->front()).use_count());
-                            (queue_s_client->front())->send(*tmp_socket);
-                            (queue_s_client->front()).reset();
-                            queue_s_client->pop();
+                            // logger->debug(ZMQ_LOG, "\[CLIENT\] tmp_queue_s_client->size() is %d, (tmp_queue_s_client->front()) is %d\n", tmp_queue_s_client->size(), (tmp_queue_s_client->front()).use_count());
+                            (tmp_queue_s_client->front())->send(*tmp_socket);
+                            (tmp_queue_s_client->front()).reset();
+                            tmp_queue_s_client->pop();
                         }
                     }
                     catch (std::exception &e)
