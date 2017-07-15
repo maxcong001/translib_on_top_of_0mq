@@ -358,6 +358,7 @@ void client_base::set_monitor_cb(MONITOR_CB_FUNC cb)
 }
 bool client_base::monitor_task()
 {
+    MONITOR_CB_FUNC_CLIENT tmp_cb = monitor_cb;
     void *client_mon = zmq_socket(client_socket_->ctxptr, ZMQ_PAIR);
     if (!client_mon)
     {
@@ -392,7 +393,6 @@ bool client_base::monitor_task()
         }
         std::string address;
         int value;
-
         int event = get_monitor_event(client_mon, &value, address);
         if (event == -1)
         {
@@ -401,9 +401,9 @@ bool client_base::monitor_task()
         }
         logger->debug(ZMQ_LOG, "\[CLIENT\] receive event form client monitor task, the event is %d. Value is :%d. String is %s\n", event, value, address.c_str());
 
-        if (monitor_cb)
+        if (tmp_cb)
         {
-            monitor_cb(event, value, address);
+            tmp_cb(event, value, address);
         }
     }
 }

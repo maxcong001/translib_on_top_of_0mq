@@ -21,6 +21,7 @@ class server_base
     server_base()
         : uniqueID_atomic(1)
     {
+
         server_socket_ = NULL;
         ctx_ = NULL;
 
@@ -46,7 +47,10 @@ class server_base
     {
         should_exit_monitor_task = true;
         should_exit_routine_task = true;
-
+        delete server_mutex;
+        server_mutex = NULL;
+        //delete Id2MsgMap_server;
+        //Id2MsgMap_server.reset();
     }
     void set_protocol(std::string protocol_)
     {
@@ -57,7 +61,7 @@ class server_base
         return protocol;
     }
     bool run();
- 
+
     void setIPPort(std::string ipport)
     {
         IP_and_port = ipport;
@@ -126,5 +130,9 @@ class server_base
     bool should_exit_monitor_task;
     bool should_exit_routine_task;
 
-
+    std::mutex *server_mutex;
+    std::shared_ptr<std::map<void *, zmsg_ptr> > Id2MsgMap_server;
+    // std::map<void *, zmsg_ptr>* Id2MsgMap_server;
+    std::shared_ptr<std::queue<zmsg_ptr> > server_q;
+    //std::queue<zmsg_ptr> server_q;
 };

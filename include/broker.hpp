@@ -149,7 +149,7 @@ class broker_base
                     {backend_socket_, 0, ZMQ_POLLIN, 0},
                     {frontend_socket_, 0, ZMQ_POLLIN, 0}};
                 // Poll frontend only if we have available workers
-                if (queue.size())
+                if (queue_worker.size())
                 {
                     zmq::poll(items, 2, HEARTBEAT_INTERVAL);
                 }
@@ -200,24 +200,24 @@ class broker_base
                     {
                         {
                             std::lock_guard<M_MUTEX> glock(broker_mutex);
-                            front_end_q.emplace(msg);
+                            front_end_q_broker.emplace(msg);
                         }
                         s_worker_append(identity);
                     }
 
-                    if (back_end_q.size())
+                    if (back_end_q_broker.size())
                     {
 
                         try
                         {
                             std::lock_guard<M_MUTEX> glock(broker_mutex);
-                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", back_end_q.size());
+                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", back_end_q_broker.size());
                             // check size again under the lock
-                            while (back_end_q.size())
+                            while (back_end_q_broker.size())
                             {
-                                (back_end_q.front())->send(backend_socket_);
-                                //(back_end_q.front()).reset();
-                                back_end_q.pop();
+                                (back_end_q_broker.front())->send(backend_socket_);
+                                //(back_end_q_broker.front()).reset();
+                                back_end_q_broker.pop();
                             }
                         }
                         catch (std::exception &e)
@@ -242,21 +242,21 @@ class broker_base
                     msg->push_front((char *)identity.c_str());
                     {
                         std::lock_guard<M_MUTEX> glock(broker_mutex);
-                        back_end_q.emplace(msg);
+                        back_end_q_broker.emplace(msg);
                     }
 
-                    if (front_end_q.size())
+                    if (front_end_q_broker.size())
                     {
                         try
                         {
                             std::lock_guard<M_MUTEX> glock(broker_mutex);
-                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", front_end_q.size());
+                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", front_end_q_broker.size());
                             // check size again under the lock
-                            while (front_end_q.size())
+                            while (front_end_q_broker.size())
                             {
-                                (front_end_q.front())->send(frontend_socket_);
-                                //(front_end_q.front()).reset();
-                                front_end_q.pop();
+                                (front_end_q_broker.front())->send(frontend_socket_);
+                                //(front_end_q_broker.front()).reset();
+                                front_end_q_broker.pop();
                             }
                         }
                         catch (std::exception &e)
@@ -269,18 +269,18 @@ class broker_base
 
                 // epoll timeout
                 {
-                    if (front_end_q.size())
+                    if (front_end_q_broker.size())
                     {
                         try
                         {
                             std::lock_guard<M_MUTEX> glock(broker_mutex);
-                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", front_end_q.size());
+                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", front_end_q_broker.size());
                             // check size again under the lock
-                            while (front_end_q.size())
+                            while (front_end_q_broker.size())
                             {
-                                (front_end_q.front())->send(frontend_socket_);
-                                //(front_end_q.front()).reset();
-                                front_end_q.pop();
+                                (front_end_q_broker.front())->send(frontend_socket_);
+                                //(front_end_q_broker.front()).reset();
+                                front_end_q_broker.pop();
                             }
                         }
                         catch (std::exception &e)
@@ -289,18 +289,18 @@ class broker_base
                             continue;
                         }
                     }
-                    if (back_end_q.size())
+                    if (back_end_q_broker.size())
                     {
                         try
                         {
                             std::lock_guard<M_MUTEX> glock(broker_mutex);
-                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", back_end_q.size());
+                            logger->debug(ZMQ_LOG, "\[BROKER\] there is %d message to send\n", back_end_q_broker.size());
                             // check size again under the lock
-                            while (back_end_q.size())
+                            while (back_end_q_broker.size())
                             {
-                                (back_end_q.front())->send(backend_socket_);
-                                //(back_end_q.front()).reset();
-                                back_end_q.pop();
+                                (back_end_q_broker.front())->send(backend_socket_);
+                                //(back_end_q_broker.front()).reset();
+                                back_end_q_broker.pop();
                             }
                         }
                         catch (std::exception &e)
@@ -314,16 +314,16 @@ class broker_base
                 //  Send heartbeats to idle workers if it's time
                 if (s_clock() > heartbeat_at)
                 {
-                    logger->debug(ZMQ_LOG, "\[BROKER\] now it is time to send heart beat, %d workers avaliable\n", queue.size());
+                    logger->debug(ZMQ_LOG, "\[BROKER\] now it is time to send heart beat, %d workers avaliable\n", queue_worker.size());
 
-                    for (std::vector<worker_t>::iterator it = queue.begin(); it < queue.end(); it++)
+                    for (std::vector<worker_t>::iterator it = queue_worker.begin(); it < queue_worker.end(); it++)
                     {
                         logger->debug(ZMQ_LOG, "\[BROKER\] send heart beat to ID: %s\n", it->identity.c_str());
                         zmsg_ptr msg(new zmsg("HEARTBEAT"));
                         msg->wrap(it->identity.c_str(), NULL);
                         {
                             std::lock_guard<M_MUTEX> glock(broker_mutex);
-                            back_end_q.emplace(msg);
+                            back_end_q_broker.emplace(msg);
                         }
                     }
                     heartbeat_at = s_clock() + HEARTBEAT_INTERVAL;
@@ -340,14 +340,14 @@ class broker_base
         logger->error(ZMQ_LOG, "\[BROKER\] should not run into here!!!!!!!!!!!!!!\n");
     }
 
-    // for queue related
+    // for queue_worker related
 
-    //  Insert worker at end of queue, reset expiry
-    //  Worker must not already be in queue
+    //  Insert worker at end of queue_worker, reset expiry
+    //  Worker must not already be in queue_worker
     void s_worker_append(std::string &identity)
     {
         bool found = false;
-        for (std::vector<worker_t>::iterator it = queue.begin(); it < queue.end(); it++)
+        for (std::vector<worker_t>::iterator it = queue_worker.begin(); it < queue_worker.end(); it++)
         {
             if (it->identity.compare(identity) == 0)
             {
@@ -361,18 +361,18 @@ class broker_base
             worker_t worker;
             worker.identity = identity;
             worker.expiry = s_clock() + HEARTBEAT_INTERVAL * HEARTBEAT_LIVENESS;
-            queue.push_back(worker);
+            queue_worker.push_back(worker);
         }
     }
 
-    //  Remove worker from queue, if present
+    //  Remove worker from queue_worker, if present
     void s_worker_delete(std::string &identity)
     {
-        for (std::vector<worker_t>::iterator it = queue.begin(); it < queue.end(); it++)
+        for (std::vector<worker_t>::iterator it = queue_worker.begin(); it < queue_worker.end(); it++)
         {
             if (it->identity.compare(identity) == 0)
             {
-                it = queue.erase(it);
+                it = queue_worker.erase(it);
                 break;
             }
         }
@@ -382,7 +382,7 @@ class broker_base
     void s_worker_refresh(std::string &identity)
     {
         bool found = false;
-        for (std::vector<worker_t>::iterator it = queue.begin(); it < queue.end(); it++)
+        for (std::vector<worker_t>::iterator it = queue_worker.begin(); it < queue_worker.end(); it++)
         {
             if (it->identity.compare(identity) == 0)
             {
@@ -397,12 +397,12 @@ class broker_base
         }
     }
 
-    //  Pop next available worker off queue, return identity
+    //  Pop next available worker off queue_worker, return identity
     std::string s_worker_dequeue()
     {
-        assert(queue.size());
-        std::string identity = queue[0].identity;
-        queue.erase(queue.begin());
+        assert(queue_worker.size());
+        std::string identity = queue_worker[0].identity;
+        queue_worker.erase(queue_worker.begin());
         return identity;
     }
 
@@ -410,11 +410,11 @@ class broker_base
     void s_queue_purge()
     {
         int64_t clock = s_clock();
-        for (std::vector<worker_t>::iterator it = queue.begin(); it < queue.end(); it++)
+        for (std::vector<worker_t>::iterator it = queue_worker.begin(); it < queue_worker.end(); it++)
         {
             if (clock > it->expiry)
             {
-                it = queue.erase(it) - 1;
+                it = queue_worker.erase(it) - 1;
             }
         }
     }
@@ -427,16 +427,16 @@ class broker_base
     std::string backend_IPPort;
     std::string frontend_protocol;
     std::string backend_protocol;
-    // for queue
+    // for queue_worker
     //  Queue of available workers
-    std::vector<worker_t> queue;
+    std::vector<worker_t> queue_worker;
 
     //M_MUTEX frontend_mutex;
     //M_MUTEX backend_mutex;
     M_MUTEX broker_mutex;
 
-    std::queue<zmsg_ptr> front_end_q;
-    std::queue<zmsg_ptr> back_end_q;
+    std::queue<zmsg_ptr> front_end_q_broker;
+    std::queue<zmsg_ptr> back_end_q_broker;
 
     bool should_return;
 };
