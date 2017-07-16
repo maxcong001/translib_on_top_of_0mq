@@ -14,8 +14,8 @@
 #include <test_util.hpp>
 // message len that we will send
 #define MAX_LEN 20
-server_base st1;
-worker_base wk1;
+server_base *st1;
+worker_base *wk1;
 void server_cb_001(const char *data, size_t len, void *ID)
 {
     /*
@@ -23,15 +23,15 @@ void server_cb_001(const char *data, size_t len, void *ID)
         << std::dec << "receive message form client : "
         << " total message: " << message_count++ << std::endl;
         */
-        
+
     //std::cout << std::dec << " \[SERVER\] total message: " << message_count++ << " ID is " << (long)ID << std::endl;
-    st1.send(data, len, ID);
+    st1->send(data, len, ID);
 }
 void worker_cb_001(const char *data, size_t len, void *ID)
 {
     //std::cout << std::dec << "receive message form client : " << (std::string(data, len)) << " total message: " << message_count++ << std::endl;
     std::cout << std::dec << " total message: " << message_count++ << " ID is " << (long)ID << std::endl;
-    wk1.send(data, len, ID);
+    wk1->send(data, len, ID);
 }
 
 void dealer_router_example();
@@ -39,8 +39,11 @@ void dealer_router_router_dealer_example();
 int main(void)
 {
     LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
+
     dealer_router_router_dealer_example();
     dealer_router_example();
+    //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     logger->error(ZMQ_LOG, " ************   exit example ************\n");
     return 0;
@@ -63,10 +66,10 @@ void dealer_router_router_dealer_example()
         //test if binary safe
         //buffer[10] = 0;;
         std::string test_str(buffer, MAX_LEN);
-        void *user_data = (void *)28;
+        void *user_data = (void *)0;
         // start some clients
         std::vector<client_base *> client_vector;
-        for (int num = 0; num < 1; num++)
+        for (int num = 0; num < 20; num++)
         {
             client_vector.emplace_back(new client_base());
         }
@@ -89,12 +92,13 @@ void dealer_router_router_dealer_example()
 
         /************worker related ************/
         logger->debug(ZMQ_LOG, "starting worker now\n");
-        wk1.set_monitor_cb(server_monitor_func);
+        wk1 = new worker_base();
+        wk1->set_monitor_cb(server_monitor_func);
         // for server, you need to set callback function first
-        wk1.set_cb(worker_cb_001);
-        wk1.set_protocol("ipc://");
-        wk1.setIPPort("abcdefg");
-        wk1.run();
+        wk1->set_cb(worker_cb_001);
+        wk1->set_protocol("ipc://");
+        wk1->setIPPort("abcdefg");
+        wk1->run();
 
         /************send message ************/
         for (int time = 0; time < 10; time++)
@@ -105,12 +109,14 @@ void dealer_router_router_dealer_example()
                 for (auto tmp_client : client_vector)
                 {
                     tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+                    user_data = ((char *)user_data) + 1;
                 }
             }
         }
         logger->error(ZMQ_LOG, " ************   exit DEALER <->(ROUTER<->ROUTER)<->DEALER MODE************\n");
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         /************clean up ************/
+        bk1.stop();
         for (auto tmp_client : client_vector)
         {
             if (tmp_client)
@@ -118,11 +124,10 @@ void dealer_router_router_dealer_example()
                 delete tmp_client;
             }
         }
-
-        bk1.stop();
+        delete wk1;
+        wk1 = NULL;
     }
 }
-
 
 void dealer_router_example()
 {
@@ -132,12 +137,13 @@ void dealer_router_example()
 
         /************server related ************/
         logger->debug(ZMQ_LOG, "starting server now\n");
+        st1 = new server_base();
         // init server
-        st1.setIPPort("127.0.0.1:5571");
-        st1.set_monitor_cb(server_monitor_func);
+        st1->setIPPort("127.0.0.1:5571");
+        st1->set_monitor_cb(server_monitor_func);
         // for server, you need to set callback function first
-        st1.set_cb(server_cb_001);
-        st1.run();
+        st1->set_cb(server_cb_001);
+        st1->run();
         /************client related ************/
         logger->debug(ZMQ_LOG, "starting client now\n");
         // init client
@@ -149,10 +155,10 @@ void dealer_router_example()
         }
 
         std::string test_str(buffer, MAX_LEN);
-        void *user_data = (void *)28;
+        void *user_data = (void *)0;
         // start some clients
         std::vector<client_base *> client_vector;
-        for (int num = 0; num < 2; num++)
+        for (int num = 0; num < 20; num++)
         {
             client_vector.emplace_back(new client_base());
         }
@@ -172,11 +178,22 @@ void dealer_router_example()
                 for (auto tmp_client : client_vector)
                 {
                     tmp_client->send(user_data, client_cb_001, test_str.c_str(), size_t(test_str.size()));
+                    user_data = ((char *)user_data) + 1;
                 }
             }
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        /************clean up ************/
+        for (auto tmp_client : client_vector)
+        {
+            if (tmp_client)
+            {
+                delete tmp_client;
+            }
+        }
+        delete st1;
+        st1 = NULL;
         logger->error(ZMQ_LOG, " ************   exit DEALER <->ROUTER MODE************\n");
         //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
     }
 }

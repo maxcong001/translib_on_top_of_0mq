@@ -3,6 +3,7 @@
 #include "zhelpers.hpp"
 #include "zmsg.hpp"
 #include <memory>
+#include <queue>
 #include <functional>
 #include <logger.hpp>
 #include <random>

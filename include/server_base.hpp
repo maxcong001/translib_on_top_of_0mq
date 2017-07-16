@@ -21,6 +21,7 @@ class server_base
     server_base()
         : uniqueID_atomic(1)
     {
+
         server_socket_ = NULL;
         ctx_ = NULL;
 
@@ -47,6 +48,19 @@ class server_base
         should_exit_monitor_task = true;
         should_exit_routine_task = true;
 
+
+        if (monitor_thread)
+        {
+
+            monitor_thread->join();
+        }
+        if (routine_thread)
+        {
+
+            routine_thread->join();
+        }
+        //delete Id2MsgMap_server;
+        //Id2MsgMap_server.reset();
     }
     void set_protocol(std::string protocol_)
     {
@@ -57,7 +71,7 @@ class server_base
         return protocol;
     }
     bool run();
- 
+
     void setIPPort(std::string ipport)
     {
         IP_and_port = ipport;
@@ -113,18 +127,24 @@ class server_base
 
   private:
     std::string monitor_path;
-    SERVER_CB_FUNC *cb_;
-    MONITOR_CB_FUNC *monitor_cb;
     std::string IP_and_port;
     std::string protocol;
-    zmq::context_t *ctx_;
-    zmq::socket_t *server_socket_;
+
     std::atomic<long> uniqueID_atomic;
 
     std::thread *routine_thread;
     std::thread *monitor_thread;
+
     bool should_exit_monitor_task;
     bool should_exit_routine_task;
 
+    zmq::context_t *ctx_;
+    zmq::socket_t *server_socket_;
 
+    SERVER_CB_FUNC *cb_;
+    MONITOR_CB_FUNC *monitor_cb;
+
+    std::shared_ptr<std::mutex> server_mutex;
+    std::shared_ptr<std::map<void *, zmsg_ptr>> Id2MsgMap_server;
+    std::shared_ptr<std::queue<zmsg_ptr>> server_q;
 };
