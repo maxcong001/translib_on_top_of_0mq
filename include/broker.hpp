@@ -68,6 +68,7 @@ class broker_base
     void stop()
     {
         should_return = true;
+ 
     }
     bool run()
     {
