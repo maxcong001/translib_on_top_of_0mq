@@ -27,11 +27,11 @@ bool server_base::run()
 
     auto routine_fun = std::bind(&server_base::start, this);
     routine_thread = new std::thread(routine_fun);
-    routine_thread->detach();
+    //routine_thread->detach();
 
     auto monitor_fun = std::bind(&server_base::monitor_task, this);
     monitor_thread = new std::thread(monitor_fun);
-    monitor_thread->detach();
+    //monitor_thread->detach();
 
     // start monitor socket
     bool ret = monitor_this_socket();
@@ -173,6 +173,7 @@ bool server_base::start()
             }
 
             tmp_socket->close();
+
             tmp_ctx->close();
             //tmp_server_q->clear();
 

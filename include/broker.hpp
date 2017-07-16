@@ -432,7 +432,6 @@ class broker_base
 
     std::queue<zmsg_ptr> front_end_q_broker;
     std::queue<zmsg_ptr> back_end_q_broker;
-
     std::vector<worker_t> queue_worker;
 
     zmq::context_t ctx_;

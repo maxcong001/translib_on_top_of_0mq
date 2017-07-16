@@ -55,9 +55,12 @@ int main(void)
 {
 	LogManager::getLogger(logging_cb)->setLevel(Logger::WARN); //ALL);
 
-	dealer_router_router_dealer_example();
+	for (int i = 0; i < 1; i++)
+	{
+		dealer_router_router_dealer_example();
+		dealer_router_example();
+	}
 
-	dealer_router_example();
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	logger->error(ZMQ_LOG, " ************   exit example ************\n");
 	return 0;
@@ -136,7 +139,7 @@ void dealer_router_router_dealer_example()
 		for (int time = 0; time < 10; time++)
 		{
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			for (int i = 0; i < 100; i++)
+			for (int i = 0; i < 10; i++)
 			{
 				for (auto tmp_client : client_vector)
 				{
@@ -146,8 +149,9 @@ void dealer_router_router_dealer_example()
 			}
 		}
 		logger->error(ZMQ_LOG, " ************   exit DEALER <->(ROUTER<->ROUTER)<->DEALER MODE************\n");
-		std::this_thread::sleep_for(std::chrono::milliseconds(20000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		/************clean up ************/
+		bk1.stop();
 		for (auto tmp_client : client_vector)
 		{
 			if (tmp_client)
@@ -156,9 +160,11 @@ void dealer_router_router_dealer_example()
 			}
 		}
 		delete wk1;
+		wk1 = NULL;
 		delete wk2;
+		wk2 = NULL;
 		delete wk3;
-		//bk1.stop();
+		wk3 = NULL;
 	}
 }
 
@@ -190,6 +196,7 @@ void dealer_router_example()
 		std::string test_str(buffer, MAX_LEN);
 		void *user_data = (void *)0;
 		// start some clients
+
 		std::vector<client_base *> client_vector;
 		for (int num = 0; num < 10; num++)
 		{
@@ -206,7 +213,7 @@ void dealer_router_example()
 		for (int time = 0; time < 10; time++)
 		{
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			for (int i = 0; i < 100; i++)
+			for (int i = 0; i < 10; i++)
 			{
 				for (auto tmp_client : client_vector)
 				{
@@ -216,7 +223,7 @@ void dealer_router_example()
 			}
 		}
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 		/************clean up ************/
 		for (auto tmp_client : client_vector)
 		{
@@ -226,5 +233,6 @@ void dealer_router_example()
 			}
 		}
 		delete st1;
+		st1 = NULL;
 	}
 }

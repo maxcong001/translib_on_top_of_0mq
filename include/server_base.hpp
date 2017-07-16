@@ -48,6 +48,17 @@ class server_base
         should_exit_monitor_task = true;
         should_exit_routine_task = true;
 
+
+        if (monitor_thread)
+        {
+
+            monitor_thread->join();
+        }
+        if (routine_thread)
+        {
+
+            routine_thread->join();
+        }
         //delete Id2MsgMap_server;
         //Id2MsgMap_server.reset();
     }
