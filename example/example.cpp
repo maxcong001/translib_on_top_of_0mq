@@ -116,6 +116,7 @@ void dealer_router_router_dealer_example()
         logger->error(ZMQ_LOG, " ************   exit DEALER <->(ROUTER<->ROUTER)<->DEALER MODE************\n");
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         /************clean up ************/
+        bk1.stop();
         for (auto tmp_client : client_vector)
         {
             if (tmp_client)
@@ -125,7 +126,6 @@ void dealer_router_router_dealer_example()
         }
         delete wk1;
         wk1 = NULL;
-        //bk1.stop();
     }
 }
 
