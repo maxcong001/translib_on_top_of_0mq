@@ -49,10 +49,10 @@ bool client_base::run()
 
     auto routine_fun = std::bind(&client_base::start, this);
     routine_thread = new std::thread(routine_fun);
-    routine_thread->detach();
+    //routine_thread->detach();
     auto monitor_fun = std::bind(&client_base::monitor_task, this);
     monitor_thread = new std::thread(monitor_fun);
-    monitor_thread->detach();
+    //monitor_thread->detach();
     bool ret = monitor_this_socket();
     if (ret)
     {
@@ -105,6 +105,17 @@ bool client_base::stop()
 {
     should_exit_monitor_task = true;
     should_stop = true;
+
+    if (monitor_thread)
+    {
+
+        monitor_thread->join();
+    }
+    if (routine_thread)
+    {
+
+        routine_thread->join();
+    }
 
     return true;
 }
