@@ -1,5 +1,5 @@
-#ifndef __ZHELPERS_HPP_INCLUDED__
-#define __ZHELPERS_HPP_INCLUDED__
+
+#pragma once
 
 //  Include a bunch of headers that we will need in the examples
 
