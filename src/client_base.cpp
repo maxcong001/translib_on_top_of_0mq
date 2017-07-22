@@ -72,14 +72,11 @@ size_t client_base::send(void *usr_data, USR_CB_FUNC cb, char *msg, size_t len)
     tmp_struct.usr_data = usr_data;
     tmp_struct.cb = (void *)cb;
     zmsg::ustring tmp_str((unsigned char *)&tmp_struct, sizeof(usrdata_and_cb));
+    zmsg_ptr messsag(new zmsg(tmp_str));
     zmsg::ustring tmp_msg((unsigned char *)(msg), len);
-    tmp_str += tmp_msg;
+    messsag->push_back(tmp_msg);
 
     sand_box_client.emplace((void *)cb);
-
-    //zmsg messsag;
-    zmsg_ptr messsag(new zmsg((char *)tmp_str.c_str()));
-    messsag->push_back(tmp_str);
 
     // send message to the queue
     {
@@ -211,11 +208,19 @@ bool client_base::start()
             if (items[0].revents & ZMQ_POLLIN)
             {
                 std::string tmp_str;
+                std::string payload;
                 //std::string tmp_data_and_cb;
                 {
                     zmsg msg(*tmp_socket);
+                    if (msg.parts() < 2)
+                    {
+                        logger->error(ZMQ_LOG, "\[CLIENT\] receive message with %d parts, less than 2 parts!\n", msg.parts());
+                        continue;
+                    }
                     logger->debug(ZMQ_LOG, "\[CLIENT\] rceive message with %d parts\n", msg.parts());
+                    payload = msg.get_body();
                     tmp_str = msg.get_body();
+                    
                 }
                 usrdata_and_cb *usrdata_and_cb_p = (usrdata_and_cb *)(tmp_str.c_str());
 
@@ -230,7 +235,7 @@ bool client_base::start()
 
                 if (tmp_cb)
                 {
-                    tmp_cb((char *)((usrdata_and_cb *)(tmp_str.c_str()) + 1), tmp_str.size() - sizeof(usrdata_and_cb), user_data);
+                    tmp_cb((char *)(payload.c_str()), payload.size(), user_data);
                 }
                 else
                 {
