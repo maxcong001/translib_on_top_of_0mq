@@ -22,6 +22,14 @@ class zmsg
     {
         body_set(body);
     }
+    zmsg(ustring body)
+    {
+          if (m_part_data.size() > 0)
+        {
+            m_part_data.erase(m_part_data.end() - 1);
+        }
+        push_back(body);      
+    }
 
     //  -------------------------------------------------------------------------
     //  Constructor, sets initial body and sends message to socket
